@@ -25,6 +25,7 @@ abstract final class Formatters {
   static final NumberFormat _twoDecimals = NumberFormat('#,##0.00');
   static final NumberFormat _integer = NumberFormat('#,##0');
   static final DateFormat _dateTime = DateFormat('d MMM yyyy, HH:mm');
+  static final DateFormat _shortDateTime = DateFormat('d MMM, HH:mm');
   static final DateFormat _date = DateFormat('d MMM yyyy');
   static final DateFormat _time = DateFormat('HH:mm:ss');
 
@@ -108,6 +109,9 @@ abstract final class Formatters {
 
   /// Formats a timestamp as `d MMM yyyy, HH:mm`.
   static String dateTime(DateTime value) => _dateTime.format(value.toLocal());
+
+  /// Formats a timestamp as `d MMM, HH:mm`.
+  static String shortDateTime(DateTime value) => _shortDateTime.format(value.toLocal());
 
   /// Formats a timestamp as `d MMM yyyy`.
   static String date(DateTime value) => _date.format(value.toLocal());

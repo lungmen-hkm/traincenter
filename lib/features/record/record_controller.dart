@@ -32,8 +32,11 @@ enum RecordingStatus {
   /// The recording has been stopped and awaits confirmation.
   finished;
 
-  /// Whether the recording currently consumes GPS fixes.
-  bool get isActive => this == RecordingStatus.recording || this == RecordingStatus.paused;
+  /// Whether the session is active (acquiring, recording or paused).
+  bool get isActive =>
+      this == RecordingStatus.acquiring ||
+      this == RecordingStatus.recording ||
+      this == RecordingStatus.paused;
 }
 
 /// An immutable snapshot of a finished recording.
@@ -142,6 +145,8 @@ class RecordController extends ChangeNotifier {
   DateTime? _pausedAt;
   DateTime? _stationarySince;
   bool _autoPause = false;
+  bool _isAutoPaused = false;
+  double _currentSpeedMps = 0;
   String? _errorMessage;
 
   /// Current status of the recording.
@@ -152,6 +157,9 @@ class RecordController extends ChangeNotifier {
 
   /// Whether the recording is paused.
   bool get isPaused => _status == RecordingStatus.paused;
+
+  /// Whether the recording was paused automatically when movement stopped.
+  bool get isAutoPaused => _isAutoPaused;
 
   /// The most recent GPS fix.
   LocationFix? get currentFix => _currentFix;
@@ -297,9 +305,12 @@ class RecordController extends ChangeNotifier {
 
   /// Pauses the recording. The GPS stream keeps running so the app can resume
   /// instantly.
-  void pause() {
+  ///
+  /// Set [auto] to true if triggered by automatic standstill detection.
+  void pause({bool auto = false}) {
     if (_status != RecordingStatus.recording) return;
     _status = RecordingStatus.paused;
+    _isAutoPaused = auto;
     _pausedAt = DateTime.now();
     _stationarySince = null;
     notifyListeners();
@@ -314,6 +325,7 @@ class RecordController extends ChangeNotifier {
     }
     _pausedAt = null;
     _stationarySince = null;
+    _isAutoPaused = false;
     _status = RecordingStatus.recording;
     notifyListeners();
   }
@@ -411,6 +423,32 @@ class RecordController extends ChangeNotifier {
       _status = RecordingStatus.recording;
     }
 
+    if (_status == RecordingStatus.paused) {
+      if (_autoPause && _isAutoPaused && _points.isNotEmpty) {
+        final prev = _points.last;
+        final d = GeoUtils.distanceMeters(
+          lat1: prev.latitude,
+          lon1: prev.longitude,
+          lat2: fix.latitude,
+          lon2: fix.longitude,
+        );
+        final dt =
+            fix.timestamp.difference(prev.timestamp).inMilliseconds / 1000.0;
+        final impliedSpeed = dt > 0 ? d / dt : 0.0;
+        final speed = math.max(fix.speedMps ?? 0, impliedSpeed);
+
+        if (speed >= AppConstants.movingSpeedThresholdMps &&
+            d >= AppConstants.minPointDistanceMeters) {
+          resume();
+          if (_isAcceptable(fix)) {
+            _appendPoint(fix);
+          }
+        }
+      }
+      notifyListeners();
+      return;
+    }
+
     if (_status != RecordingStatus.recording) {
       notifyListeners();
       return;
@@ -470,7 +508,7 @@ class RecordController extends ChangeNotifier {
   void _handleAutoPause(LocationFix fix) {
     if (!_autoPause) return;
 
-    final speed = fix.speedMps ?? 0;
+    final speed = math.max(fix.speedMps ?? 0, _currentSpeedMps);
     if (speed >= AppConstants.movingSpeedThresholdMps) {
       _stationarySince = null;
       return;
@@ -479,7 +517,7 @@ class RecordController extends ChangeNotifier {
     _stationarySince ??= fix.timestamp;
     final stationary = fix.timestamp.difference(_stationarySince!);
     if (stationary >= AppConstants.autoPauseDelay) {
-      pause();
+      pause(auto: true);
     }
   }
 
@@ -533,6 +571,7 @@ class RecordController extends ChangeNotifier {
 
       // Ignore GPS jitter while standing still.
       if (distance < AppConstants.minPointDistanceMeters) {
+        _currentSpeedMps = fix.speedMps ?? 0;
         return;
       }
 
@@ -546,13 +585,16 @@ class RecordController extends ChangeNotifier {
         // distance-derived speed so the maximum can never fall below the
         // average speed shown on the summary.
         final measuredSpeed = math.max(fix.speedMps ?? 0, impliedSpeed);
+        _currentSpeedMps = measuredSpeed;
         if (measuredSpeed > _maxSpeedMps) {
           _maxSpeedMps = measuredSpeed;
         }
-        if (impliedSpeed >= AppConstants.movingSpeedThresholdMps) {
+        if (measuredSpeed >= AppConstants.movingSpeedThresholdMps) {
           _movingTimeMs += deltaMs;
         }
       }
+    } else {
+      _currentSpeedMps = fix.speedMps ?? 0;
     }
 
     _points.add(
@@ -626,6 +668,8 @@ class RecordController extends ChangeNotifier {
     _pausedDurationMs = 0;
     _pausedAt = null;
     _stationarySince = null;
+    _isAutoPaused = false;
+    _currentSpeedMps = 0;
   }
 
   @override

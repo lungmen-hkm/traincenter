@@ -37,6 +37,7 @@ class GearScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'add_gear_fab',
         onPressed: () => GearFormSheet.show(context),
         icon: const Icon(Icons.add_rounded),
         label: const Text('Add gear'),

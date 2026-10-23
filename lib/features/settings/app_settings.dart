@@ -41,7 +41,7 @@ enum ExportBrightness {
 
   /// Human readable label.
   String get label => switch (this) {
-        ExportBrightness.system => 'Follow app theme',
+        ExportBrightness.system => 'System',
         ExportBrightness.light => 'Light',
         ExportBrightness.dark => 'Dark',
       };

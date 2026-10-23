@@ -341,13 +341,29 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
         }
 
       case 'delete':
+        final effortCount = _efforts.length;
+        final prCount = _efforts.where((e) => e.isPersonalBest).length;
+        final buffer = StringBuffer(
+          'The activity and its GPS track will be permanently removed.',
+        );
+        if (effortCount > 0) {
+          buffer.write(
+            '\n\nThis will also delete $effortCount segment '
+            '${effortCount == 1 ? 'effort' : 'efforts'}',
+          );
+          if (prCount > 0) {
+            buffer.write(
+              ' ($prCount ${prCount == 1 ? 'PR' : 'PRs'})',
+            );
+          }
+          buffer.write('.');
+        }
+
         final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Delete activity?'),
-            content: const Text(
-              'The activity and its GPS track will be removed from this device.',
-            ),
+            content: Text(buffer.toString()),
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),

@@ -1,3 +1,5 @@
+import '../../core/utils/formatters.dart';
+
 /// A recorded activity (ride, run, ...).
 class Activity {
   /// Database identifier. `null` for activities that have not been persisted.
@@ -126,5 +128,7 @@ class Activity {
   }
 
   /// Default title used when the user does not name the activity.
-  String get displayTitle => title?.trim().isNotEmpty == true ? title!.trim() : 'Activity';
+  String get displayTitle => title?.trim().isNotEmpty == true
+      ? title!.trim()
+      : 'Activity · ${Formatters.shortDateTime(startedAt)}';
 }

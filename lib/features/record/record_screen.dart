@@ -179,6 +179,7 @@ class _RecordScreenState extends State<RecordScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: _TopBar(
                   status: controller.status,
+                  isAutoPaused: controller.isAutoPaused,
                   gear: controller.selectedGear,
                   onPickGear: _pickGear,
                 ),
@@ -236,11 +237,13 @@ class _RecordScreenState extends State<RecordScreen> {
 class _TopBar extends StatelessWidget {
   const _TopBar({
     required this.status,
+    required this.isAutoPaused,
     required this.gear,
     required this.onPickGear,
   });
 
   final RecordingStatus status;
+  final bool isAutoPaused;
   final Gear? gear;
   final VoidCallback onPickGear;
 
@@ -314,7 +317,7 @@ class _TopBar extends StatelessWidget {
                   RecordingStatus.idle => 'Ready',
                   RecordingStatus.acquiring => 'Acquiring GPS',
                   RecordingStatus.recording => 'Recording',
-                  RecordingStatus.paused => 'Paused',
+                  RecordingStatus.paused => isAutoPaused ? 'Auto-paused' : 'Paused',
                   RecordingStatus.finished => 'Finished',
                 },
                 style: theme.textTheme.labelLarge?.copyWith(

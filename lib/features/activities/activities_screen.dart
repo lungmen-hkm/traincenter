@@ -217,7 +217,7 @@ class _ActivityCard extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: const Text('Delete activity?'),
         content: const Text(
-          'The activity and its GPS track will be removed from this device.',
+          'The activity, its GPS track and any associated segment efforts will be permanently removed.',
         ),
         actions: <Widget>[
           TextButton(

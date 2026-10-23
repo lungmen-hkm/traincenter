@@ -7,6 +7,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/widgets/section_header.dart';
 import '../activities/activities_controller.dart';
 import '../gear/gear_controller.dart';
+import '../record/record_controller.dart';
 import '../segments/segments_controller.dart';
 import 'app_settings.dart';
 
@@ -20,6 +21,8 @@ class SettingsScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final settings = context.watch<AppSettings>();
+    final isRecordingActive =
+        context.watch<RecordController>().status.isActive;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -207,10 +210,18 @@ class SettingsScreen extends StatelessWidget {
           Card(
             color: colorScheme.surfaceContainerLow,
             child: ListTile(
-              leading: const Icon(Icons.delete_forever_rounded),
+              leading: Icon(
+                Icons.delete_forever_rounded,
+                color: isRecordingActive ? colorScheme.outline : colorScheme.error,
+              ),
               title: const Text('Erase all local data'),
-              subtitle: const Text('Removes every activity, gear and segment.'),
-              onTap: () => _confirmWipe(context),
+              subtitle: Text(
+                isRecordingActive
+                    ? 'Finish or discard your active recording first.'
+                    : 'Removes every activity, gear and segment.',
+              ),
+              enabled: !isRecordingActive,
+              onTap: isRecordingActive ? null : () => _confirmWipe(context),
             ),
           ),
           const SizedBox(height: 24),
@@ -230,16 +241,26 @@ class SettingsScreen extends StatelessWidget {
   /// Describes a tile source.
   String _tileDescription(MapTileSource source) => switch (source) {
         MapTileSource.openStreetMap =>
-          'Downloads the public tiles. Only the tile coordinates are sent, '
+          'Downloads public OSM tiles. Only tile coordinates are sent, '
               'never your routes.',
         MapTileSource.offline =>
-          'Reads the tiles bundled in assets/maptiles. Works fully offline.',
+          'Reads local tiles from assets/maptiles. Falls back to vector geometry if not installed.',
         MapTileSource.none =>
-          'No tiles at all: the routes are drawn as pure vector geometry.',
+          'No tiles at all: routes are drawn as pure vector geometry.',
       };
 
   /// Wipes the local database after a confirmation.
   Future<void> _confirmWipe(BuildContext context) async {
+    final recordController = context.read<RecordController>();
+    if (recordController.status.isActive) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Finish or discard your active recording first.'),
+        ),
+      );
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:traincenter/app.dart';
 import 'package:traincenter/core/db/app_database.dart';
+import 'package:traincenter/core/services/background_location_service.dart';
+import 'package:traincenter/core/services/location_service.dart';
 import 'package:traincenter/core/widgets/slide_to_confirm.dart';
 import 'package:traincenter/data/models/activity.dart';
 import 'package:traincenter/data/models/gear.dart';
@@ -13,7 +17,36 @@ import 'package:traincenter/data/models/track_point.dart';
 import 'package:traincenter/data/repositories/activity_repository.dart';
 import 'package:traincenter/data/repositories/gear_repository.dart';
 import 'package:traincenter/features/export/activity_export_card.dart';
+import 'package:traincenter/features/record/record_controller.dart';
 import 'package:widgets_to_image/widgets_to_image.dart';
+
+class _TestLocationService implements LocationService {
+  final StreamController<LocationFix> fixes =
+      StreamController<LocationFix>.broadcast();
+
+  @override
+  Future<LocationPermissionState> requestPermission() async =>
+      LocationPermissionState.granted;
+
+  @override
+  Future<LocationPermissionState> checkPermission() async =>
+      LocationPermissionState.granted;
+
+  @override
+  Future<bool> isServiceEnabled() async => true;
+
+  @override
+  Stream<LocationFix> watch(LocationTrackingOptions options) => fixes.stream;
+
+  @override
+  Future<LocationFix?> currentPosition() async => null;
+
+  @override
+  Future<bool> openApplicationSettings() async => false;
+
+  @override
+  void dispose() => fixes.close();
+}
 
 void main() {
   setUpAll(() {
@@ -33,8 +66,18 @@ void main() {
   }
 
   /// Pumps the application and lets the asynchronous providers settle.
-  Future<void> bootApp(WidgetTester tester, AppDatabase database) async {
-    await tester.pumpWidget(TrainCenterApp(database: database));
+  Future<void> bootApp(
+    WidgetTester tester,
+    AppDatabase database, {
+    LocationService? locationService,
+  }) async {
+    await tester.pumpWidget(
+      TrainCenterApp(
+        database: database,
+        locationService: locationService ?? _TestLocationService(),
+        backgroundLocationService: const NoopBackgroundLocationService(),
+      ),
+    );
     // Let the repositories load; a few frames are enough because the
     // loading spinner would otherwise never settle.
     for (var i = 0; i < 8; i++) {
@@ -230,5 +273,64 @@ void main() {
       isTrue,
       reason: 'the exported PNG must contain the drawn content',
     );
+  });
+
+  testWidgets('settings screen disables data wipe when recording is active',
+      (tester) async {
+    final database = await openDatabase(tester);
+    addTearDown(database.close);
+
+    await bootApp(tester, database);
+
+    // Open settings while idle
+    await tester.tap(find.byTooltip('Settings'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    await tester.scrollUntilVisible(
+      find.text('Erase all local data'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Erase all local data'), findsOneWidget);
+    expect(find.text('Removes every activity, gear and segment.'), findsOneWidget);
+
+    // Go back to shell
+    await tester.tap(find.byType(BackButton));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    // Start recording
+    final recordController =
+        tester.element(find.byType(MaterialApp)).read<RecordController>();
+    await recordController.start(allowBackground: false);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    // Open settings while recording is active
+    await tester.tap(find.byTooltip('Settings'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    await tester.scrollUntilVisible(
+      find.text('Erase all local data'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Finish or discard your active recording first.'),
+        findsOneWidget);
+
+    // Tapping the disabled tile should not show confirmation dialog
+    await tester.tap(find.text('Erase all local data'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('Erase all data?'), findsNothing);
+
+    recordController.stop();
   });
 }

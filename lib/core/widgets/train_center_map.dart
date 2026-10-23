@@ -137,6 +137,7 @@ class TrainCenterMap extends StatefulWidget {
 
 class _TrainCenterMapState extends State<TrainCenterMap> {
   MapController? _internalController;
+  bool _hasTileError = false;
 
   /// The controller used by the map, creating the internal one on demand.
   MapController get _mapController =>
@@ -151,6 +152,9 @@ class _TrainCenterMapState extends State<TrainCenterMap> {
   @override
   void didUpdateWidget(covariant TrainCenterMap oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.tileSource != widget.tileSource) {
+      _hasTileError = false;
+    }
     if (oldWidget.fitToRoutes != widget.fitToRoutes) {
       _fitToRoutes();
     }
@@ -229,6 +233,11 @@ class _TrainCenterMapState extends State<TrainCenterMap> {
                 : NetworkTileProvider(),
             userAgentPackageName: 'com.previx.traincenter',
             maxNativeZoom: 19,
+            errorTileCallback: (tile, error, stackTrace) {
+              if (!_hasTileError && mounted) {
+                setState(() => _hasTileError = true);
+              }
+            },
           ),
         PolylineLayer(
           polylines: <Polyline>[
@@ -259,6 +268,26 @@ class _TrainCenterMapState extends State<TrainCenterMap> {
             attributions: <SourceAttribution>[
               TextSourceAttribution(
                 'OpenStreetMap contributors',
+                onTap: null,
+              ),
+            ],
+          ),
+        if (_hasTileError && widget.tileSource == MapTileSource.offline)
+          const RichAttributionWidget(
+            alignment: AttributionAlignment.bottomLeft,
+            attributions: <SourceAttribution>[
+              TextSourceAttribution(
+                'No offline tiles installed · Vector mode',
+                onTap: null,
+              ),
+            ],
+          ),
+        if (_hasTileError && widget.tileSource == MapTileSource.openStreetMap)
+          const RichAttributionWidget(
+            alignment: AttributionAlignment.bottomLeft,
+            attributions: <SourceAttribution>[
+              TextSourceAttribution(
+                'Map tiles unavailable · Vector mode',
                 onTap: null,
               ),
             ],

@@ -7,6 +7,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/widgets/slide_to_confirm.dart';
 import '../../core/widgets/stat_tile.dart';
 import '../../core/widgets/train_center_map.dart';
+import '../../data/models/gear.dart';
 import '../activities/activities_controller.dart';
 import '../gear/gear_controller.dart';
 import '../gear/gear_picker_sheet.dart';
@@ -34,6 +35,16 @@ class _FinishScreenState extends State<FinishScreen> {
   final TextEditingController _noteController = TextEditingController();
 
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final recordController = context.read<RecordController>();
+    final started = widget.summary.startedAt;
+    final isRun = recordController.selectedGear?.type == GearType.shoe;
+    final activityType = isRun ? 'Run' : 'Ride';
+    _titleController.text = '$activityType · ${Formatters.shortDateTime(started)}';
+  }
 
   @override
   void dispose() {

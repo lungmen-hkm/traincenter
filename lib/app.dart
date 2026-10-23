@@ -27,10 +27,21 @@ import 'features/shell/home_shell.dart';
 /// the platform does not expose one, a seeded fallback scheme is used.
 class TrainCenterApp extends StatelessWidget {
   /// Creates the application.
-  const TrainCenterApp({super.key, required this.database});
+  const TrainCenterApp({
+    super.key,
+    required this.database,
+    this.locationService,
+    this.backgroundLocationService,
+  });
 
   /// The opened local database.
   final AppDatabase database;
+
+  /// Optional override for the location service (e.g. in tests).
+  final LocationService? locationService;
+
+  /// Optional override for the background location service (e.g. in tests).
+  final BackgroundLocationService? backgroundLocationService;
 
   @override
   Widget build(BuildContext context) {
@@ -57,10 +68,11 @@ class TrainCenterApp extends StatelessWidget {
 
         // --- Platform services ---------------------------------------------
         Provider<LocationService>(
-          create: (_) => GeolocatorLocationService(),
+          create: (_) => locationService ?? GeolocatorLocationService(),
         ),
         Provider<BackgroundLocationService>(
-          create: (_) => createBackgroundLocationService(),
+          create: (_) =>
+              backgroundLocationService ?? createBackgroundLocationService(),
         ),
 
         // --- State ----------------------------------------------------------

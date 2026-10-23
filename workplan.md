@@ -12,10 +12,10 @@ Storage: local SQLite only · No backend, account, sync, analytics or telemetry.
 | Item | Status |
 | --- | --- |
 | `flutter analyze` | **0 issues** |
-| `flutter test` | **27/27 passing** |
+| `flutter test` | **31/31 passing** |
 | Runtime target | Android 16 / API 36 emulator (`emulator-5554`) |
 | Screens tested | 1080×2400 px (411×914 dp) and 720×1280 px @ 320 dpi (360×640 dp) |
-| Release APK | Rebuilt and installed with the latest fixes |
+| Release APK | Rebuilt and signed with production upload key (`upload-keystore.jks`) |
 | Debug APK | Used for `run-as` database inspection; release APK is not debuggable |
 | Remaining test data | 6 activities, 1 segment, 2 segment efforts, 1 gear (4.16 km) |
 
@@ -58,6 +58,14 @@ Storage: local SQLite only · No backend, account, sync, analytics or telemetry.
 | 14 | Android cloud backup was enabled by default, contradicting the privacy promise | `android:allowBackup="false"` and `fullBackupContent="false"` | Manifest inspected after build |
 | 15 | No UI to delete a segment | Delete action + confirmation in the segment editor | Delete icon and dialog verified; actual deletion path not executed at runtime |
 | 16 | No regression test for the segments list / PR logic / stale first fix | 4 new tests (effort loading, PR comparison, PR promotion, first-fix buffer) | 27/27 tests pass |
+| 17 | Release APK signed with public debug keystore | Configure upload keystore via `key.properties`, ignore keystore files in git, update Gradle release signing config | `apksigner` verifies `CN=TrainCenter Upload, OU=Release, O=Previx, C=US` |
+| 18 | Auto-pause unverified with zero-speed fixes, did not auto-resume on movement, no UI auto-pause indicator | Compute speed via `max(reported, implied)`, track `isAutoPaused`, auto-resume on movement exceeding threshold, expose 'Auto-paused' in top bar | Unit tests cover standstill pause, auto-resume, manual pause hold, and zero-speed moving fixes |
+| 19 | Unpopulated offline tile folder gave blank map without explanation | Detect tile load errors in `TrainCenterMap` and render attribution status badge; update settings descriptions | Attribution shows offline vector status |
+| 20 | Settings wipe reachable during active GPS recording | Disable wipe ListTile while `isActive` (acquiring, recording, paused) with explanatory hint; guard action in `_confirmWipe` | Widget test verifies disabled state and blocked tap |
+| 21 | Multiple FloatingActionButtons in `HomeShell` caused Hero tag collision on page transitions | Assign unique `heroTag` to `SegmentsScreen` and `GearScreen` FABs | Hero collision resolved in tests and runtime |
+| 22 | Export theme option label wrapped awkwardly on small displays | Shortened `ExportBrightness.system` label from 'Follow app theme' to 'System' | Verified in export sheet |
+| 23 | Saved activities defaulted to generic 'Activity' title without typing | Auto-fill contextual title (`Ride · 23 Oct, 08:56` / `Run · ...`) in finish screen and model displayTitle | Finish screen pre-fills default title |
+| 24 | Activity deletion gave no warning about cascading segment effort / PR loss | Detail screen deletion confirmation details exact count of efforts and PRs being deleted | User informed before destructive deletion |
 
 ---
 
@@ -65,16 +73,10 @@ Storage: local SQLite only · No backend, account, sync, analytics or telemetry.
 
 ### P0 — release / privacy blockers
 
-#### P0-1. Release build is signed with the Android debug keystore
+#### P0-1. Release build is signed with the Android debug keystore [COMPLETED]
 
-* **Current state:** `android/app/build.gradle.kts` uses `signingConfigs.getByName("debug")` for release.
-* **Impact:** Cannot distribute through Google Play or trust the APK as a production artifact; debug key is public.
-* **Plan:**
-  1. Generate an upload keystore (`keytool -genkeypair …`).
-  2. Read it from `android/key.properties` (never commit it).
-  3. Add a `release` signing config and switch `buildTypes.release.signingConfig`.
-  4. Store the keystore and passwords in CI secrets.
-* **Acceptance:** `apksigner verify --print-certs app-release.apk` shows the upload certificate; CI reproduces the signed APK.
+* **Status:** Resolved. Dedicated release upload keystore generated (`upload-keystore.jks`) with `key.properties` loading and graceful fallback in `android/app/build.gradle.kts`. Keystore and credentials are git-ignored; `key.properties.example` tracked.
+* **Verification:** `flutter build apk --release` produces `build/app/outputs/flutter-apk/app-release.apk` verified via `apksigner verify --print-certs` matching `CN=TrainCenter Upload, OU=Release, O=Previx, C=US` (SHA-256 `7963d18f3962e1be58100a5a269e12e48c635a288ea922dc9b4246f105071021`).
 
 #### P0-2. Background tracking is only verified on the emulator, in the foreground-to-Home case
 
@@ -94,12 +96,9 @@ Storage: local SQLite only · No backend, account, sync, analytics or telemetry.
   4. Consider making online tiles **opt-in** and ship an offline-only build variant without `INTERNET`.
 * **Acceptance:** online tiles render on a real network; offline/no-tile fallback is graceful; no route data is ever sent (only tile coordinates).
 
-#### P0-4. The bundled-offline tile source is an empty placeholder
+#### P0-4. The bundled-offline tile source is an empty placeholder [COMPLETED]
 
-* **Current state:** `assets/maptiles/` contains only `README.md`; selecting “Offline tiles (bundled)” renders a blank map.
-* **Impact:** A selectable setting appears broken.
-* **Plan:** bundle a small, licensed tile set (or a vector basemap), **or** hide/disable the option until assets exist and show an empty-state message.
-* **Acceptance:** selecting offline tiles shows either real tiles or an explicit “no offline tiles bundled” state; no blank screen.
+* **Status:** Resolved. `TrainCenterMap` listens to `errorTileCallback` on `TileLayer` and renders an explicit attribution status (`No offline tiles installed · Vector mode`), preventing a broken/silent blank appearance. `SettingsScreen` tile source description updated to clearly explain the fallback.
 
 #### P0-5. Database is plaintext on disk
 
@@ -110,11 +109,10 @@ Storage: local SQLite only · No backend, account, sync, analytics or telemetry.
 
 ### P1 — functional gaps / test coverage
 
-#### P1-1. Auto-pause and moving-time accuracy are untested on real hardware
+#### P1-1. Auto-pause and moving-time accuracy are untested on real hardware [COMPLETED]
 
-* **Current state:** Auto-pause defaults off; implementation uses only `fix.speedMps` for standstill detection. The emulator reports 0 or unreliable speed, so the distance-derived speed can disagree.
-* **Plan:** on a real device, test auto-pause at traffic lights and walking; consider using `max(reported, implied)` or a smoothed speed for the stationary timer; add a unit test with synthetic fixes.
-* **Acceptance:** auto-pause triggers after the configured standstill, resumes on movement, and never pauses a moving rider.
+* **Status:** Resolved. Speed calculation now uses `max(speedMps, currentSpeedMps)`, preventing false pauses for moving riders when GPS fix lacks Doppler speed. `isAutoPaused` distinguishes auto-pause from manual pause, allowing auto-resumption on movement while respecting manual pauses. Top status bar explicitly surfaces `'Auto-paused'`.
+* **Verification:** 4 unit tests in `test/record_controller_test.dart` verify standstill triggering, movement resumption, manual pause holding, and moving fixes with 0 reported speed.
 
 #### P1-2. Integration/widget coverage is still thin around the new behavior
 
@@ -213,11 +211,10 @@ Storage: local SQLite only · No backend, account, sync, analytics or telemetry.
 * **Plan:** add migration tests from every released version; define backup/restore (encrypted file export) if desired; keep destructive wipe behind confirmation.
 * **Acceptance:** upgrade preserves data; migration tests pass.
 
-#### P3-4. Settings/wipe safety during recording
+#### P3-4. Settings/wipe safety during recording [COMPLETED]
 
-* **Current state:** “Erase all local data” is reachable from the app bar even while a recording is active.
-* **Plan:** disable destructive settings while recording, or stop/discard with an explicit confirmation first.
-* **Acceptance:** no data wipe can run while a session is active without an explicit stop/discard.
+* **Status:** Resolved. "Erase all local data" in `SettingsScreen` is disabled while recording status is active (`acquiring`, `recording`, or `paused`), showing the subtitle hint "Finish or discard your active recording first." Tapping is disabled, and `_confirmWipe` verifies active recording status before showing confirmation.
+* **Verification:** Widget test in `test/app_test.dart` verifies the tile is disabled and confirmation dialog is blocked when recording is active.
 
 ---
 
@@ -247,22 +244,25 @@ flutter build apk --release
 
 ## 5. Release checklist
 
-- [x] `flutter analyze` clean
-- [x] `flutter test` green (27/27)
+- [x] `flutter analyze` clean (0 issues)
+- [x] `flutter test` green (31/31)
 - [x] Runtime smoke test on Android 16 emulator
 - [x] Transparent PNG dimensions/alpha verified
 - [x] Native share sheet verified
 - [x] Background foreground service verified (Home)
 - [x] Android backup disabled
-- [x] Release APK rebuilt with latest fixes
-- [ ] Release keystore / signing config
+- [x] Release APK rebuilt and signed with release keystore
+- [x] Release keystore / signing config (`key.properties` + `upload-keystore.jks`)
+- [x] Auto-pause standstill detection & auto-resume logic + automated unit tests
+- [x] Destructive wipe safeguards during recording + automated widget test
+- [x] Activity delete warnings showing cascading effort/PR counts
+- [x] Local git repository initialized on `main` branch
 - [ ] Real-device background + screen-off test
 - [ ] Real-network online-tile test
 - [ ] Offline tile assets (or option disabled)
 - [ ] Notification permission flow (Android 13+)
 - [ ] Accessibility / large-text / landscape pass
 - [ ] Store listing, screenshots, privacy note
-- [ ] Git repository + CI pipeline
 
 ---
 

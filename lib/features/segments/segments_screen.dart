@@ -31,6 +31,7 @@ class SegmentsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'create_segment_fab',
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const SegmentEditorScreen()),
         ),

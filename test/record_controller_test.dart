@@ -108,4 +108,231 @@ void main() {
 
     controller.stop();
   });
+
+  test('auto-pause pauses after standstill and resumes on movement', () async {
+    final database = AppDatabase(
+      fileName: 'record_autopause_${DateTime.now().microsecondsSinceEpoch}.db',
+    );
+    await database.open();
+    addTearDown(database.close);
+
+    final locationService = _FakeLocationService();
+    final controller = RecordController(
+      locationService: locationService,
+      backgroundLocationService: const NoopBackgroundLocationService(),
+      activityRepository: ActivityRepository(database),
+      gearRepository: GearRepository(database),
+      segmentEffortService: SegmentEffortService(SegmentRepository(database)),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.start(allowBackground: false, autoPause: true);
+
+    final t0 = DateTime.now();
+
+    // Initial fixes to establish track
+    locationService.fixes.add(
+      LocationFix(
+        latitude: 0.0,
+        longitude: 0.0,
+        accuracyMeters: 5,
+        speedMps: 4.0,
+        timestamp: t0,
+      ),
+    );
+    await pumpEventQueue();
+
+    locationService.fixes.add(
+      LocationFix(
+        latitude: 0.0003,
+        longitude: 0.0,
+        accuracyMeters: 5,
+        speedMps: 4.0,
+        timestamp: t0.add(const Duration(seconds: 2)),
+      ),
+    );
+    await pumpEventQueue();
+
+    expect(controller.isRecording, isTrue);
+    expect(controller.isPaused, isFalse);
+    expect(controller.points, hasLength(2));
+
+    // Standstill starts at t0 + 5s
+    locationService.fixes.add(
+      LocationFix(
+        latitude: 0.0003,
+        longitude: 0.0,
+        accuracyMeters: 5,
+        speedMps: 0.0,
+        timestamp: t0.add(const Duration(seconds: 5)),
+      ),
+    );
+    await pumpEventQueue();
+    expect(controller.isRecording, isTrue);
+    expect(controller.isPaused, isFalse);
+
+    // Standstill continues for 21 seconds (t0 + 26s > 20s delay)
+    locationService.fixes.add(
+      LocationFix(
+        latitude: 0.0003,
+        longitude: 0.0,
+        accuracyMeters: 5,
+        speedMps: 0.0,
+        timestamp: t0.add(const Duration(seconds: 26)),
+      ),
+    );
+    await pumpEventQueue();
+
+    expect(controller.isPaused, isTrue);
+    expect(controller.isAutoPaused, isTrue);
+
+    // Movement resumes at t0 + 35s
+    locationService.fixes.add(
+      LocationFix(
+        latitude: 0.0006,
+        longitude: 0.0,
+        accuracyMeters: 5,
+        speedMps: 3.5,
+        timestamp: t0.add(const Duration(seconds: 35)),
+      ),
+    );
+    await pumpEventQueue();
+
+    expect(controller.isRecording, isTrue);
+    expect(controller.isPaused, isFalse);
+    expect(controller.isAutoPaused, isFalse);
+    expect(controller.points, hasLength(3));
+
+    controller.stop();
+  });
+
+  test('manual pause does not auto-resume on movement', () async {
+    final database = AppDatabase(
+      fileName: 'record_manualpause_${DateTime.now().microsecondsSinceEpoch}.db',
+    );
+    await database.open();
+    addTearDown(database.close);
+
+    final locationService = _FakeLocationService();
+    final controller = RecordController(
+      locationService: locationService,
+      backgroundLocationService: const NoopBackgroundLocationService(),
+      activityRepository: ActivityRepository(database),
+      gearRepository: GearRepository(database),
+      segmentEffortService: SegmentEffortService(SegmentRepository(database)),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.start(allowBackground: false, autoPause: true);
+
+    final t0 = DateTime.now();
+
+    locationService.fixes.add(
+      LocationFix(
+        latitude: 0.0,
+        longitude: 0.0,
+        accuracyMeters: 5,
+        timestamp: t0,
+      ),
+    );
+    await pumpEventQueue();
+
+    locationService.fixes.add(
+      LocationFix(
+        latitude: 0.0003,
+        longitude: 0.0,
+        accuracyMeters: 5,
+        timestamp: t0.add(const Duration(seconds: 2)),
+      ),
+    );
+    await pumpEventQueue();
+
+    // User explicitly taps pause
+    controller.pause();
+    expect(controller.isPaused, isTrue);
+    expect(controller.isAutoPaused, isFalse);
+
+    // Movement fix arrives
+    locationService.fixes.add(
+      LocationFix(
+        latitude: 0.0007,
+        longitude: 0.0,
+        accuracyMeters: 5,
+        speedMps: 4.0,
+        timestamp: t0.add(const Duration(seconds: 10)),
+      ),
+    );
+    await pumpEventQueue();
+
+    // Still paused because it was a manual pause
+    expect(controller.isPaused, isTrue);
+    expect(controller.isAutoPaused, isFalse);
+
+    controller.stop();
+  });
+
+  test('moving rider with zero GPS-reported speed does not trigger auto-pause', () async {
+    final database = AppDatabase(
+      fileName: 'record_impliedspeed_${DateTime.now().microsecondsSinceEpoch}.db',
+    );
+    await database.open();
+    addTearDown(database.close);
+
+    final locationService = _FakeLocationService();
+    final controller = RecordController(
+      locationService: locationService,
+      backgroundLocationService: const NoopBackgroundLocationService(),
+      activityRepository: ActivityRepository(database),
+      gearRepository: GearRepository(database),
+      segmentEffortService: SegmentEffortService(SegmentRepository(database)),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.start(allowBackground: false, autoPause: true);
+
+    final t0 = DateTime.now();
+
+    // Initial fixes with speedMps = 0, but distance moving
+    locationService.fixes.add(
+      LocationFix(
+        latitude: 0.0,
+        longitude: 0.0,
+        accuracyMeters: 5,
+        speedMps: 0.0,
+        timestamp: t0,
+      ),
+    );
+    await pumpEventQueue();
+
+    locationService.fixes.add(
+      LocationFix(
+        latitude: 0.0002,
+        longitude: 0.0,
+        accuracyMeters: 5,
+        speedMps: 0.0,
+        timestamp: t0.add(const Duration(seconds: 5)),
+      ),
+    );
+    await pumpEventQueue();
+
+    // Fixes keep moving ~22m every 5 seconds (implied speed ~4.4 m/s) with speedMps = 0
+    for (var i = 1; i <= 6; i++) {
+      locationService.fixes.add(
+        LocationFix(
+          latitude: 0.0002 + i * 0.0002,
+          longitude: 0.0,
+          accuracyMeters: 5,
+          speedMps: 0.0,
+          timestamp: t0.add(Duration(seconds: 5 + i * 5)),
+        ),
+      );
+      await pumpEventQueue();
+    }
+
+    // After 35 total seconds, rider was continuously moving: should NOT be auto-paused
+    expect(controller.isRecording, isTrue);
+    expect(controller.isPaused, isFalse);
+
+    controller.stop();
+  });
 }
