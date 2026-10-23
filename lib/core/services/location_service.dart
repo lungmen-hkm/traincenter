@@ -135,6 +135,13 @@ abstract class LocationService {
   /// Returns the current position once, or `null` when unavailable.
   Future<LocationFix?> currentPosition();
 
+  /// Returns the most recent cached fix without starting a GPS session.
+  ///
+  /// This is used to place the map on the right part of the world before the
+  /// first live fix arrives. It never prompts for permission and can return
+  /// `null` when the OS has no cached location or the permission is missing.
+  Future<LocationFix?> lastKnownPosition();
+
   /// Opens the OS settings page where location permissions can be changed.
   Future<bool> openApplicationSettings();
 

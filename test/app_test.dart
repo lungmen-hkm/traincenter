@@ -42,6 +42,9 @@ class _TestLocationService implements LocationService {
   Future<LocationFix?> currentPosition() async => null;
 
   @override
+  Future<LocationFix?> lastKnownPosition() async => null;
+
+  @override
   Future<bool> openApplicationSettings() async => false;
 
   @override

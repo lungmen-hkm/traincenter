@@ -66,6 +66,7 @@ Storage: local SQLite only · No backend, account, sync, analytics or telemetry.
 | 22 | Export theme option label wrapped awkwardly on small displays | Shortened `ExportBrightness.system` label from 'Follow app theme' to 'System' | Verified in export sheet |
 | 23 | Saved activities defaulted to generic 'Activity' title without typing | Auto-fill contextual title (`Ride · 23 Oct, 08:56` / `Run · ...`) in finish screen and model displayTitle | Finish screen pre-fills default title |
 | 24 | Activity deletion gave no warning about cascading segment effort / PR loss | Detail screen deletion confirmation details exact count of efforts and PRs being deleted | User informed before destructive deletion |
+| 25 | Record screen opened on the empty ocean at (0, 0) until the first live fix, making online OSM tiles look broken | `TrainCenterMap` gained an `onMapReady` hook; `RecordScreen` centres on `LocationService.lastKnownPosition()` without prompting; cached fix is exposed by `GeolocatorLocationService` | Redmi Note 5 (Android 9): Mataram map rendered immediately before recording; OSM tiles verified end-to-end |
 
 ---
 
@@ -85,16 +86,12 @@ Storage: local SQLite only · No backend, account, sync, analytics or telemetry.
 * **Plan:** run a 30–60 minute real-device test with screen off; add “battery optimization” guidance; declare/request `POST_NOTIFICATIONS`; verify the foreground notification is visible on Android 13+; add a service-restart strategy if the stream dies.
 * **Acceptance:** distance/time continue for 30+ minutes with the screen off and the app backgrounded; notification visible; documented OEM exceptions.
 
-#### P0-3. Online OpenStreetMap tiles are unverified; the emulator has no DNS
+#### P0-3. Online OpenStreetMap tiles are unverified; the emulator has no DNS [COMPLETED]
 
-* **Current state:** Emulator has IP connectivity but DNS resolution fails (`ping tiles.openstreetmap.org` → unknown host). The app is currently set to “No tiles (vector only)”.
-* **Impact:** The online tile path is untested end-to-end; the “fully offline” claim needs qualification because `INTERNET` is declared.
-* **Plan:**
-  1. Test on a real network/device with the OSM source selected.
-  2. Add a tile error/fallback state and a user-visible “tiles unavailable” hint.
-  3. Set a proper `User-Agent` (`com.previx.traincenter`) and respect the OSM tile usage policy.
-  4. Consider making online tiles **opt-in** and ship an offline-only build variant without `INTERNET`.
-* **Acceptance:** online tiles render on a real network; offline/no-tile fallback is graceful; no route data is ever sent (only tile coordinates).
+* **Status:** Verified on a real device (Redmi Note 5, Android 9) with the OSM source selected. Tiles for Mataram (`z14/13475/8584`) render roads, water and the OSM attribution; the app sends `User-Agent: flutter_map (com.previx.traincenter)` and only tile coordinates leave the device. The emulator DNS blocker no longer blocks verification.
+* **Related fix:** The record screen previously started at (0, 0) (Gulf of Guinea) until the first GPS fix, which looked like a broken tile layer. It now centres on the OS cached last-known position via `LocationService.lastKnownPosition()` as soon as the map is ready (issue 25 in the table above).
+* **Fallback:** `TrainCenterMap` already renders a `Map tiles unavailable · Vector mode` badge on tile errors, so interrupted networks degrade gracefully.
+* **Remaining (optional):** an opt-in network switch or offline-only build flavour without `INTERNET` is tracked as P2-6.
 
 #### P0-4. The bundled-offline tile source is an empty placeholder [COMPLETED]
 
@@ -258,7 +255,8 @@ flutter build apk --release
 - [x] Activity delete warnings showing cascading effort/PR counts
 - [x] Local git repository initialized on `main` branch
 - [ ] Real-device background + screen-off test
-- [ ] Real-network online-tile test
+- [x] Real-network online-tile test
+- [ ] Image saved to Downloads Folder
 - [ ] Offline tile assets (or option disabled)
 - [ ] Notification permission flow (Android 13+)
 - [ ] Accessibility / large-text / landscape pass

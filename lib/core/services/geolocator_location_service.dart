@@ -81,6 +81,31 @@ class GeolocatorLocationService implements LocationService {
   }
 
   @override
+  Future<LocationFix?> lastKnownPosition() async {
+    try {
+      final position = await Geolocator.getLastKnownPosition();
+      if (position == null) return null;
+      return LocationFix(
+        latitude: position.latitude,
+        longitude: position.longitude,
+        altitude: position.altitude,
+        speedMps: position.speed,
+        accuracyMeters: position.accuracy,
+        timestamp: position.timestamp,
+      );
+    } on Object catch (error, stackTrace) {
+      // No permission yet or no cached fix available: the caller simply keeps
+      // the default map centre.
+      debugPrint('TrainCenter: unable to read last known position: $error');
+      assert(() {
+        debugPrintStack(stackTrace: stackTrace);
+        return true;
+      }());
+      return null;
+    }
+  }
+
+  @override
   Future<bool> openApplicationSettings() => Geolocator.openAppSettings();
 
   @override

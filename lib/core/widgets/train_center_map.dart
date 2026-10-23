@@ -83,6 +83,7 @@ class TrainCenterMap extends StatefulWidget {
     this.interactive = true,
     this.showAttribution = true,
     this.onUserInteraction,
+    this.onMapReady,
     this.padding = const EdgeInsets.all(24),
     this.mapController,
   });
@@ -120,6 +121,9 @@ class TrainCenterMap extends StatefulWidget {
   /// The recording screen uses this to stop following the athlete as soon as
   /// the user takes control of the camera.
   final VoidCallback? onUserInteraction;
+
+  /// Called once the map surface is ready to receive camera commands.
+  final VoidCallback? onMapReady;
 
   /// Padding used when the camera frames the routes.
   final EdgeInsets padding;
@@ -201,7 +205,10 @@ class _TrainCenterMapState extends State<TrainCenterMap> {
         initialCenter: initialCenter,
         initialZoom: widget.initialZoom,
         backgroundColor: colorScheme.surfaceContainerLow,
-        onMapReady: () => _fitToRoutes(),
+        onMapReady: () {
+          _fitToRoutes();
+          widget.onMapReady?.call();
+        },
         onTap: widget.onTap,
         onMapEvent: (event) {
           // Only a gesture issued by the user disables the follow mode; the

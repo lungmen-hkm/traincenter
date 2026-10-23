@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/services/location_service.dart';
 import '../../core/services/screen_wake_lock.dart';
 import '../../core/theme/activity_palette.dart';
 import '../../core/utils/formatters.dart';
@@ -27,6 +28,7 @@ class RecordScreen extends StatefulWidget {
 class _RecordScreenState extends State<RecordScreen> {
   final MapController _mapController = MapController();
   bool _follow = true;
+  bool _centeredOnLastKnownPosition = false;
   int _lastPointCount = 0;
   LatLng? _lastCenter;
 
@@ -67,6 +69,33 @@ class _RecordScreenState extends State<RecordScreen> {
 
     final center = LatLng(fix.latitude, fix.longitude);
     if (center == _lastCenter) return;
+    _lastCenter = center;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _mapController.move(center, _mapController.camera.zoom);
+    });
+  }
+
+  /// Places the camera on the last position the OS remembers.
+  ///
+  /// Without this the map would start at (0, 0) — the Gulf of Guinea — until
+  /// the first live GPS fix arrives, which can take a while outdoors and
+  /// practically forever indoors. That empty ocean view made the online tile
+  /// source look broken.
+  Future<void> _centerOnLastKnownPosition() async {
+    if (_centeredOnLastKnownPosition) return;
+
+    final fix = await context.read<LocationService>().lastKnownPosition();
+    if (!mounted || fix == null) return;
+
+    final controller = context.read<RecordController>();
+    // A live fix or an already recorded track always wins.
+    if (controller.currentFix != null || controller.points.isNotEmpty) return;
+    if (!_follow) return;
+
+    _centeredOnLastKnownPosition = true;
+    final center = LatLng(fix.latitude, fix.longitude);
     _lastCenter = center;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -164,6 +193,7 @@ class _RecordScreenState extends State<RecordScreen> {
               tileSource: settings.mapTileSource,
               interactive: true,
               fitToRoutes: false,
+              onMapReady: _centerOnLastKnownPosition,
               onUserInteraction: () => setState(() => _follow = false),
               initialCenter: points.isNotEmpty ? points.last : null,
             ),
