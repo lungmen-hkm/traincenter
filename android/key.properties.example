@@ -1,0 +1,7 @@
+# Example Android release signing configuration
+# Copy this file to key.properties and configure with your real keystore credentials.
+# key.properties is excluded from version control.
+storePassword=your_keystore_password
+keyPassword=your_key_password
+keyAlias=upload
+storeFile=upload-keystore.jks
