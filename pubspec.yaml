@@ -1,0 +1,62 @@
+name: traincenter
+description: "TrainCenter — a privacy-first, fully offline activity tracker (Strava-like) for bikes and shoes."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # --- Theming / Material 3 -------------------------------------------------
+  # Dynamic Color: derives the M3 ColorScheme from the system wallpaper.
+  #
+  # NOTE: dynamic_color 2.x is built against the standalone `material_ui`
+  # package whose ColorScheme is a *different type* from the one in
+  # `package:flutter/material.dart`. TrainCenter uses the Flutter SDK
+  # Material library, therefore the 1.7.x line is the compatible release.
+  dynamic_color: ^1.7.0
+
+  # --- State management ------------------------------------------------------
+  provider: ^6.1.5+1
+
+  # --- Local persistence (offline first, no backend) ------------------------
+  sqflite: ^2.4.5
+  path: ^1.9.1
+  path_provider: ^2.1.6
+
+  # --- Geolocation / background tracking ------------------------------------
+  geolocator: ^14.1.2
+
+  # --- Maps ------------------------------------------------------------------
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
+
+  # --- Transparent PNG export & native share sheet --------------------------
+  widgets_to_image: ^2.0.1
+  share_plus: ^13.3.1
+  # `share_plus` accepts a list of `XFile`s; the type is declared explicitly
+  # here so the dependency does not rely on a transitive re-export.
+  cross_file: ^0.3.4+2
+
+  # --- Utilities -------------------------------------------------------------
+  intl: ^0.20.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  sqflite_common_ffi: ^2.4.4
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    # Optional offline map tiles, see assets/maptiles/README.md.
+    - assets/maptiles/

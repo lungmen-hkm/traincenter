@@ -1,0 +1,234 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:traincenter/app.dart';
+import 'package:traincenter/core/db/app_database.dart';
+import 'package:traincenter/core/widgets/slide_to_confirm.dart';
+import 'package:traincenter/data/models/activity.dart';
+import 'package:traincenter/data/models/gear.dart';
+import 'package:traincenter/data/models/track_point.dart';
+import 'package:traincenter/data/repositories/activity_repository.dart';
+import 'package:traincenter/data/repositories/gear_repository.dart';
+import 'package:traincenter/features/export/activity_export_card.dart';
+import 'package:widgets_to_image/widgets_to_image.dart';
+
+void main() {
+  setUpAll(() {
+    sqfliteFfiInit();
+    // The "no isolate" factory runs the SQLite calls in the current isolate,
+    // which is required inside the fake-async zone of a widget test.
+    databaseFactory = databaseFactoryFfiNoIsolate;
+  });
+
+  /// Opens a fresh database for a single test.
+  Future<AppDatabase> openDatabase(WidgetTester tester) async {
+    final database = AppDatabase(
+      fileName: 'test_${DateTime.now().microsecondsSinceEpoch}.db',
+    );
+    await tester.runAsync(database.open);
+    return database;
+  }
+
+  /// Pumps the application and lets the asynchronous providers settle.
+  Future<void> bootApp(WidgetTester tester, AppDatabase database) async {
+    await tester.pumpWidget(TrainCenterApp(database: database));
+    // Let the repositories load; a few frames are enough because the
+    // loading spinner would otherwise never settle.
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 120));
+    }
+  }
+
+  testWidgets('boots into the record screen', (tester) async {
+    final database = await openDatabase(tester);
+    addTearDown(database.close);
+
+    await bootApp(tester, database);
+
+    expect(find.text('TrainCenter'), findsOneWidget);
+    expect(find.text('Start recording'), findsOneWidget);
+    expect(find.text('Ready'), findsOneWidget);
+  });
+
+  testWidgets('navigates between the four destinations', (tester) async {
+    final database = await openDatabase(tester);
+    addTearDown(database.close);
+
+    await bootApp(tester, database);
+
+    await tester.tap(find.text('Activities'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('No activities yet'), findsOneWidget);
+
+    await tester.tap(find.text('Segments'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('No segments yet'), findsOneWidget);
+
+    await tester.tap(find.text('Gear'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('No gear yet'), findsOneWidget);
+  });
+
+  testWidgets('stores a gear and lists it', (tester) async {
+    final database = await openDatabase(tester);
+    addTearDown(database.close);
+
+    await bootApp(tester, database);
+
+    final gearRepository = GearRepository(database);
+    final now = DateTime.now();
+    await gearRepository.insertGear(
+      Gear(
+        name: 'Gravel bike',
+        brand: 'Specialized',
+        model: 'Diverge E5',
+        type: GearType.bicycle,
+        isDefault: true,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    // Re-read the gear through the app.
+    final gear = await gearRepository.listGear();
+    expect(gear, hasLength(1));
+    expect(gear.single.name, 'Gravel bike');
+    expect(gear.single.isDefault, isTrue);
+
+    // The default gear is picked up by the recording controller.
+    final activityRepository = ActivityRepository(database);
+    final activity = Activity(
+      title: 'Morning ride',
+      startedAt: now,
+      endedAt: now.add(const Duration(minutes: 30)),
+      distanceMeters: 15000,
+      movingTimeMs: 30 * 60 * 1000,
+      elapsedTimeMs: 32 * 60 * 1000,
+      avgSpeedMps: 8.3,
+      maxSpeedMps: 12.5,
+      elevationGainMeters: 210,
+      createdAt: now,
+    );
+
+    final points = <TrackPoint>[
+      for (var i = 0; i < 5; i++)
+        TrackPoint(
+          seq: i,
+          latitude: 48.85 + i * 0.001,
+          longitude: 2.35 + i * 0.001,
+          altitude: 35 + i * 2,
+          timestamp: now.add(Duration(seconds: i * 10)),
+        ),
+    ];
+
+    final activityId = await activityRepository.insertActivity(activity, points);
+    expect(activityId, greaterThan(0));
+
+    final stored = await activityRepository.findById(activityId);
+    expect(stored, isNotNull);
+    expect(stored!.distanceMeters, 15000);
+
+    final track = await activityRepository.trackPoints(activityId);
+    expect(track, hasLength(5));
+    expect(track.first.seq, 0);
+    expect(track.last.seq, 4);
+  });
+
+  testWidgets('the slide to confirm action only fires past the threshold',
+      (tester) async {
+    var confirmed = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 320,
+              child: SlideToConfirm(onConfirmed: () => confirmed++),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final slider = find.byType(SlideToConfirm);
+    expect(slider, findsOneWidget);
+
+    // Drag well below the threshold: the action must not fire.
+    await tester.drag(find.byType(SlideToConfirm), const Offset(60, 0));
+    await tester.pumpAndSettle();
+    expect(confirmed, 0);
+
+    // Drag past the threshold: the action fires.
+    await tester.drag(find.byType(SlideToConfirm), const Offset(300, 0));
+    await tester.pumpAndSettle();
+    expect(confirmed, 1);
+  });
+
+  testWidgets('the export card renders a transparent PNG', (tester) async {
+    final controller = WidgetsToImageController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: WidgetsToImage(
+              controller: controller,
+              child: ActivityExportCard(
+                points: <LatLng>[
+                  const LatLng(48.8500, 2.3500),
+                  const LatLng(48.8560, 2.3520),
+                  const LatLng(48.8620, 2.3480),
+                  const LatLng(48.8680, 2.3540),
+                ],
+                distanceValue: '42.18',
+                distanceUnit: 'km',
+                speedValue: '28.4',
+                speedUnit: 'km/h',
+                durationValue: '1:12:30',
+                activityLabel: 'Morning ride',
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // The three statistics are part of the card.
+    expect(find.text('42.18'), findsOneWidget);
+    expect(find.text('28.4'), findsOneWidget);
+    expect(find.text('1:12:30'), findsOneWidget);
+    expect(find.text('MORNING RIDE'), findsOneWidget);
+
+    final bytes = await tester.runAsync(() async {
+      final captured = await controller.capture(
+        options: const CaptureOptions(format: ImageFormat.png, pixelRatio: 1),
+      );
+      if (captured == null) return null;
+
+      // Decode the PNG so the alpha channel can be inspected.
+      final codec = await ui.instantiateImageCodec(captured);
+      final frame = await codec.getNextFrame();
+      final data = await frame.image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      return data?.buffer.asUint8List();
+    });
+
+    expect(bytes, isNotNull);
+    final rgba = bytes!;
+
+    expect(rgba.length, greaterThan(4));
+    // The top-left corner is not covered by the route or by any text.
+    expect(rgba[3], 0, reason: 'the exported PNG must have a transparent background');
+    // The canvas is not empty either: the card really painted something.
+    expect(
+      rgba.skip(3).where((value) => value > 0).isNotEmpty,
+      isTrue,
+      reason: 'the exported PNG must contain the drawn content',
+    );
+  });
+}
