@@ -10,7 +10,6 @@ and shoes) built with Flutter and Material Design 3.
   web are not supported targets in this release.
 
 **Documentation:** [Privacy policy](docs/privacy.md) ·
-[Store listing kit](docs/store-listing.md) ·
 [Screenshots](docs/screenshots/)
 
 ---
