@@ -331,7 +331,7 @@ The canonical, store-facing version of this summary is
 
 ## 10. License
 
-Distributed under the **GNU General Public License v3.0** (GPLv3). See [`LICENSE`](LICENSE) for the full license text.
+Distributed under the **GNU General Public License v3.0** (GPLv3). See [`LICENSE`](LICENSE.md) for the full license text.
 
 ```text
 TrainCenter Copyright (C) 2026 lungmen-hkm
