@@ -1,7 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 // `XFile` is provided by `cross_file`; the import is explicit on purpose even
 // though `share_plus` re-exports it.
 // ignore: unnecessary_import
@@ -33,10 +32,16 @@ class ActivityExportService {
   /// Creates the service.
   ActivityExportService();
 
+  /// Native channel that writes PNGs into the public Downloads folder.
+  static const MethodChannel _downloadsChannel = MethodChannel(
+    'com.previx.traincenter/downloads',
+  );
+
   /// Writes the PNG bytes to the application documents directory.
   ///
-  /// The file name is derived from the activity so repeated exports do not
-  /// silently overwrite each other.
+  /// This private copy is used for sharing. The user-facing "Save PNG" action
+  /// calls [savePngToDownloads] instead, so the exported image is not hidden
+  /// inside the app sandbox.
   Future<ExportResult> savePng(
     Uint8List bytes, {
     required String activityName,
@@ -47,22 +52,37 @@ class ActivityExportService {
       await exportDirectory.create(recursive: true);
     }
 
-    final fileName = '${_slug(activityName)}_${DateTime.now().millisecondsSinceEpoch}.png';
-    final file = File(p.join(exportDirectory.path, fileName));
+    final file = File(p.join(exportDirectory.path, _fileName(activityName)));
     await file.writeAsBytes(bytes, flush: true);
 
     return ExportResult(file: file, bytes: bytes);
+  }
+
+  /// Saves the PNG into the device's public Downloads folder.
+  ///
+  /// Returns the user-visible location, for example
+  /// `Downloads/traincenter_1720000000000.png`. Android 10+ publishes the
+  /// image through MediaStore; Android 9 and older asks for storage permission
+  /// on the first save.
+  Future<String> savePngToDownloads(
+    Uint8List bytes, {
+    required String activityName,
+  }) async {
+    final location = await _downloadsChannel.invokeMethod<String>(
+      'savePngToDownloads',
+      <String, Object?>{'fileName': _fileName(activityName), 'bytes': bytes},
+    );
+    if (location == null || location.isEmpty) {
+      throw StateError('The image could not be saved to Downloads.');
+    }
+    return location;
   }
 
   /// Opens the native share sheet for the given PNG [file].
   ///
   /// [origin] is the screen rectangle of the button that triggered the share.
   /// It is required by iPadOS to anchor the popover.
-  Future<ShareResult> sharePng(
-    File file, {
-    String? text,
-    Rect? origin,
-  }) {
+  Future<ShareResult> sharePng(File file, {String? text, Rect? origin}) {
     return SharePlus.instance.share(
       ShareParams(
         files: <XFile>[XFile(file.path, mimeType: 'image/png')],
@@ -81,5 +101,11 @@ class ActivityExportService {
         .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
         .replaceAll(RegExp(r'^_+|_+$'), '');
     return slug.isEmpty ? 'activity' : slug;
+  }
+
+  /// Builds a collision-resistant, file-system safe PNG name.
+  String _fileName(String activityName) {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return '${_slug(activityName)}_$timestamp.png';
   }
 }

@@ -122,9 +122,8 @@ class _RecordScreenState extends State<RecordScreen> {
     );
 
     if (!started && mounted && controller.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(controller.errorMessage!)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(controller.errorMessage!)));
       controller.clearError();
     }
   }
@@ -137,9 +136,7 @@ class _RecordScreenState extends State<RecordScreen> {
     if (!mounted) return;
 
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => FinishScreen(summary: summary),
-      ),
+      MaterialPageRoute<void>(builder: (_) => FinishScreen(summary: summary)),
     );
   }
 
@@ -172,47 +169,36 @@ class _RecordScreenState extends State<RecordScreen> {
       body: Stack(
         children: <Widget>[
           Positioned.fill(
-            child: TrainCenterMap(
-              mapController: _mapController,
-              routes: <MapRoute>[
-                if (points.isNotEmpty)
-                  MapRoute(
-                    points: points,
-                    color: palette.route,
-                    borderColor: colorScheme.surface,
-                    strokeWidth: 6,
-                  ),
-              ],
-              markers: <MapMarker>[
-                if (currentPosition != null)
-                  MapMarker(
-                    point: LatLng(currentPosition.latitude, currentPosition.longitude),
-                    child: MapPin(color: colorScheme.primary),
-                  ),
-              ],
-              tileSource: settings.mapTileSource,
-              interactive: true,
-              fitToRoutes: false,
-              onMapReady: _centerOnLastKnownPosition,
-              onUserInteraction: () => setState(() => _follow = false),
-              initialCenter: points.isNotEmpty ? points.last : null,
-            ),
-          ),
-
-          // --- Top overlay --------------------------------------------------
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: _TopBar(
-                  status: controller.status,
-                  isAutoPaused: controller.isAutoPaused,
-                  gear: controller.selectedGear,
-                  onPickGear: _pickGear,
-                ),
+            child: Semantics(
+              label: 'Live route map',
+              container: true,
+              child: TrainCenterMap(
+                mapController: _mapController,
+                routes: <MapRoute>[
+                  if (points.isNotEmpty)
+                    MapRoute(
+                      points: points,
+                      color: palette.route,
+                      borderColor: colorScheme.surface,
+                      strokeWidth: 6,
+                    ),
+                ],
+                markers: <MapMarker>[
+                  if (currentPosition != null)
+                    MapMarker(
+                      point: LatLng(
+                        currentPosition.latitude,
+                        currentPosition.longitude,
+                      ),
+                      child: MapPin(color: colorScheme.primary),
+                    ),
+                ],
+                tileSource: settings.mapTileSource,
+                interactive: true,
+                fitToRoutes: false,
+                onMapReady: _centerOnLastKnownPosition,
+                onUserInteraction: () => setState(() => _follow = false),
+                initialCenter: points.isNotEmpty ? points.last : null,
               ),
             ),
           ),
@@ -248,6 +234,26 @@ class _RecordScreenState extends State<RecordScreen> {
               settings: settings,
               onStart: _start,
               onStop: _stop,
+            ),
+          ),
+
+          // --- Top overlay --------------------------------------------------
+          // Painted last so the gear and status chips stay readable and
+          // tappable when the statistics panel grows at large text sizes.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: _TopBar(
+                  status: controller.status,
+                  isAutoPaused: controller.isAutoPaused,
+                  gear: controller.selectedGear,
+                  onPickGear: _pickGear,
+                ),
+              ),
             ),
           ),
         ],
@@ -292,7 +298,10 @@ class _TopBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               onTap: status.isActive ? null : onPickGear,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
@@ -331,7 +340,9 @@ class _TopBar extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: status.isActive ? colorScheme.errorContainer : colorScheme.surfaceContainerHigh,
+            color: status.isActive
+                ? colorScheme.errorContainer
+                : colorScheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
@@ -347,11 +358,14 @@ class _TopBar extends StatelessWidget {
                   RecordingStatus.idle => 'Ready',
                   RecordingStatus.acquiring => 'Acquiring GPS',
                   RecordingStatus.recording => 'Recording',
-                  RecordingStatus.paused => isAutoPaused ? 'Auto-paused' : 'Paused',
+                  RecordingStatus.paused =>
+                    isAutoPaused ? 'Auto-paused' : 'Paused',
                   RecordingStatus.finished => 'Finished',
                 },
                 style: theme.textTheme.labelLarge?.copyWith(
-                  color: status.isActive ? colorScheme.onErrorContainer : colorScheme.onSurface,
+                  color: status.isActive
+                      ? colorScheme.onErrorContainer
+                      : colorScheme.onSurface,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -418,6 +432,29 @@ class _ControlPanel extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final units = settings.units;
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    final verticalStats =
+        textScale > 1.35 || MediaQuery.sizeOf(context).width < 360;
+    final secondaryStats = <Widget>[
+      _MiniStat(
+        icon: Icons.speed_rounded,
+        label: 'Avg',
+        value: Formatters.speed(controller.avgSpeedMps, units),
+        horizontal: verticalStats,
+      ),
+      _MiniStat(
+        icon: Icons.trending_up_rounded,
+        label: 'Elev',
+        value: Formatters.elevation(controller.elevationGainMeters, units),
+        horizontal: verticalStats,
+      ),
+      _MiniStat(
+        icon: Icons.gps_fixed_rounded,
+        label: 'Points',
+        value: '${controller.sampleCount}',
+        horizontal: verticalStats,
+      ),
+    ];
 
     return Container(
       padding: EdgeInsets.fromLTRB(
@@ -462,7 +499,9 @@ class _ControlPanel extends StatelessWidget {
                 Formatters.duration(controller.elapsedTimeMs),
                 style: theme.textTheme.titleLarge?.copyWith(
                   color: colorScheme.onSurfaceVariant,
-                  fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+                  fontFeatures: const <FontFeature>[
+                    FontFeature.tabularFigures(),
+                  ],
                 ),
               ),
             ],
@@ -470,36 +509,24 @@ class _ControlPanel extends StatelessWidget {
           const SizedBox(height: 16),
 
           // --- Secondary statistics -----------------------------------------
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: _MiniStat(
-                  icon: Icons.speed_rounded,
-                  label: 'Avg',
-                  value: Formatters.speed(controller.avgSpeedMps, units),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _MiniStat(
-                  icon: Icons.trending_up_rounded,
-                  label: 'Elev',
-                  value: Formatters.elevation(
-                    controller.elevationGainMeters,
-                    units,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _MiniStat(
-                  icon: Icons.gps_fixed_rounded,
-                  label: 'Points',
-                  value: '${controller.sampleCount}',
-                ),
-              ),
-            ],
-          ),
+          if (verticalStats)
+            Column(
+              children: <Widget>[
+                for (var i = 0; i < secondaryStats.length; i++) ...<Widget>[
+                  if (i > 0) const SizedBox(height: 8),
+                  secondaryStats[i],
+                ],
+              ],
+            )
+          else
+            Row(
+              children: <Widget>[
+                for (var i = 0; i < secondaryStats.length; i++) ...<Widget>[
+                  if (i > 0) const SizedBox(width: 12),
+                  Expanded(child: secondaryStats[i]),
+                ],
+              ],
+            ),
           const SizedBox(height: 20),
 
           // --- Controls ------------------------------------------------------
@@ -527,7 +554,9 @@ class _ControlPanel extends StatelessWidget {
               else ...<Widget>[
                 Expanded(
                   child: FilledButton.tonalIcon(
-                    onPressed: controller.isPaused ? controller.resume : controller.pause,
+                    onPressed: controller.isPaused
+                        ? controller.resume
+                        : controller.pause,
                     icon: Icon(
                       controller.isPaused
                           ? Icons.play_arrow_rounded
@@ -563,16 +592,44 @@ class _MiniStat extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    this.horizontal = false,
   });
 
   final IconData icon;
   final String label;
   final String value;
 
+  /// Whether the label and value sit side by side instead of stacked.
+  ///
+  /// The stacked version fits three tiles in a row; the horizontal version is
+  /// used when large text or a narrow screen would break the labels mid-word.
+  final bool horizontal;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+
+    final iconWidget = Icon(
+      icon,
+      size: 16,
+      color: colorScheme.onSurfaceVariant,
+    );
+    final labelWidget = Text(
+      label,
+      style: theme.textTheme.labelSmall?.copyWith(
+        color: colorScheme.onSurfaceVariant,
+      ),
+    );
+    final valueWidget = Text(
+      value,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.titleSmall?.copyWith(
+        color: colorScheme.onSurface,
+        fontWeight: FontWeight.w700,
+      ),
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -580,35 +637,29 @@ class _MiniStat extends StatelessWidget {
         color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
-        children: <Widget>[
-          Icon(icon, size: 16, color: colorScheme.onSurfaceVariant),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+      child: horizontal
+          ? Row(
               children: <Widget>[
-                Text(
-                  label,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: colorScheme.onSurface,
-                    fontWeight: FontWeight.w700,
+                iconWidget,
+                const SizedBox(width: 10),
+                Expanded(child: labelWidget),
+                const SizedBox(width: 12),
+                Flexible(child: valueWidget),
+              ],
+            )
+          : Row(
+              children: <Widget>[
+                iconWidget,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[labelWidget, valueWidget],
                   ),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }

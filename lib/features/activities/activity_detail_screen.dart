@@ -6,6 +6,7 @@ import '../../core/theme/activity_palette.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/section_header.dart';
 import '../../core/widgets/stat_tile.dart';
+import '../../core/widgets/stat_tile_grid.dart';
 import '../../core/widgets/train_center_map.dart';
 import '../../data/models/activity.dart';
 import '../../data/models/segment_effort.dart';
@@ -138,91 +139,85 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
             borderRadius: BorderRadius.circular(24),
             child: SizedBox(
               height: 260,
-              child: TrainCenterMap(
-                routes: <MapRoute>[
-                  if (points.isNotEmpty)
-                    MapRoute(
-                      points: points,
-                      color: palette.route,
-                      borderColor: colorScheme.surface,
-                      strokeWidth: 6,
-                    ),
-                ],
-                tileSource: settings.mapTileSource,
-                showAttribution: settings.mapTileSource == MapTileSource.openStreetMap,
+              child: Semantics(
+                label: 'Activity route map',
+                container: true,
+                child: TrainCenterMap(
+                  routes: <MapRoute>[
+                    if (points.isNotEmpty)
+                      MapRoute(
+                        points: points,
+                        color: palette.route,
+                        borderColor: colorScheme.surface,
+                        strokeWidth: 6,
+                      ),
+                  ],
+                  tileSource: settings.mapTileSource,
+                  showAttribution:
+                      settings.mapTileSource == MapTileSource.openStreetMap,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 16),
 
-          Row(
+          StatTileGrid(
             children: <Widget>[
-              Expanded(
-                child: StatTile(
-                  label: 'Distance',
-                  value:
-                      Formatters.distance(activity.distanceMeters, units).split(' ').first,
-                  unit: Formatters.distanceUnit(units),
-                  icon: Icons.route_rounded,
-                  emphasis: true,
-                ),
+              StatTile(
+                label: 'Distance',
+                value: Formatters.distance(
+                  activity.distanceMeters,
+                  units,
+                ).split(' ').first,
+                unit: Formatters.distanceUnit(units),
+                icon: Icons.route_rounded,
+                emphasis: true,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StatTile(
-                  label: 'Avg speed',
-                  value:
-                      Formatters.speed(activity.avgSpeedMps, units).split(' ').first,
-                  unit: Formatters.speed(activity.avgSpeedMps, units).split(' ').last,
-                  icon: Icons.speed_rounded,
-                ),
+              StatTile(
+                label: 'Avg speed',
+                value: Formatters.speed(
+                  activity.avgSpeedMps,
+                  units,
+                ).split(' ').first,
+                unit: Formatters.speed(
+                  activity.avgSpeedMps,
+                  units,
+                ).split(' ').last,
+                icon: Icons.speed_rounded,
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: StatTile(
-                  label: 'Moving time',
-                  value: Formatters.duration(activity.movingTimeMs),
-                  icon: Icons.timer_outlined,
-                ),
+              StatTile(
+                label: 'Moving time',
+                value: Formatters.duration(activity.movingTimeMs),
+                icon: Icons.timer_outlined,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StatTile(
-                  label: 'Elapsed',
-                  value: Formatters.duration(activity.elapsedTimeMs),
-                  icon: Icons.hourglass_empty_rounded,
-                ),
+              StatTile(
+                label: 'Elapsed',
+                value: Formatters.duration(activity.elapsedTimeMs),
+                icon: Icons.hourglass_empty_rounded,
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: StatTile(
-                  label: 'Elevation',
-                  value: Formatters.elevation(activity.elevationGainMeters, units)
-                      .split(' ')
-                      .first,
-                  unit: Formatters.elevation(activity.elevationGainMeters, units)
-                      .split(' ')
-                      .last,
-                  icon: Icons.trending_up_rounded,
-                ),
+              StatTile(
+                label: 'Elevation',
+                value: Formatters.elevation(
+                  activity.elevationGainMeters,
+                  units,
+                ).split(' ').first,
+                unit: Formatters.elevation(
+                  activity.elevationGainMeters,
+                  units,
+                ).split(' ').last,
+                icon: Icons.trending_up_rounded,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StatTile(
-                  label: 'Max speed',
-                  value:
-                      Formatters.speed(activity.maxSpeedMps, units).split(' ').first,
-                  unit: Formatters.speed(activity.maxSpeedMps, units).split(' ').last,
-                  icon: Icons.flash_on_rounded,
-                ),
+              StatTile(
+                label: 'Max speed',
+                value: Formatters.speed(
+                  activity.maxSpeedMps,
+                  units,
+                ).split(' ').first,
+                unit: Formatters.speed(
+                  activity.maxSpeedMps,
+                  units,
+                ).split(' ').last,
+                icon: Icons.flash_on_rounded,
               ),
             ],
           ),
@@ -257,7 +252,8 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                   label: 'Average pace',
                   value: Formatters.pace(activity.avgSpeedMps, units),
                 ),
-                if (activity.note != null && activity.note!.isNotEmpty) ...<Widget>[
+                if (activity.note != null &&
+                    activity.note!.isNotEmpty) ...<Widget>[
                   const Divider(height: 1),
                   _DetailRow(
                     icon: Icons.notes_rounded,
@@ -334,9 +330,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
         );
 
         if (title != null && mounted) {
-          await context
-              .read<ActivitiesController>()
-              .update(activity.copyWith(title: title));
+          await context.read<ActivitiesController>().update(
+            activity.copyWith(title: title),
+          );
           await _load();
         }
 
@@ -352,9 +348,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
             '${effortCount == 1 ? 'effort' : 'efforts'}',
           );
           if (prCount > 0) {
-            buffer.write(
-              ' ($prCount ${prCount == 1 ? 'PR' : 'PRs'})',
-            );
+            buffer.write(' ($prCount ${prCount == 1 ? 'PR' : 'PRs'})');
           }
           buffer.write('.');
         }
@@ -409,13 +403,15 @@ class _DetailRow extends StatelessWidget {
         children: <Widget>[
           Icon(icon, size: 18, color: colorScheme.onSurfaceVariant),
           const SizedBox(width: 12),
-          Text(
-            label,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+          Expanded(
+            child: Text(
+              label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: 12),
           Flexible(
             child: Text(
               value,
@@ -458,7 +454,9 @@ class _EffortTile extends StatelessWidget {
         child: Row(
           children: <Widget>[
             Icon(
-              effort.isPersonalBest ? Icons.emoji_events_rounded : Icons.timer_rounded,
+              effort.isPersonalBest
+                  ? Icons.emoji_events_rounded
+                  : Icons.timer_rounded,
               size: 18,
               color: effort.isPersonalBest
                   ? colorScheme.onSecondaryContainer

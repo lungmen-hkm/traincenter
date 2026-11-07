@@ -6,6 +6,7 @@ import '../../core/theme/activity_palette.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/slide_to_confirm.dart';
 import '../../core/widgets/stat_tile.dart';
+import '../../core/widgets/stat_tile_grid.dart';
 import '../../core/widgets/train_center_map.dart';
 import '../../data/models/gear.dart';
 import '../activities/activities_controller.dart';
@@ -43,7 +44,8 @@ class _FinishScreenState extends State<FinishScreen> {
     final started = widget.summary.startedAt;
     final isRun = recordController.selectedGear?.type == GearType.shoe;
     final activityType = isRun ? 'Run' : 'Ride';
-    _titleController.text = '$activityType · ${Formatters.shortDateTime(started)}';
+    _titleController.text =
+        '$activityType · ${Formatters.shortDateTime(started)}';
   }
 
   @override
@@ -79,9 +81,9 @@ class _FinishScreenState extends State<FinishScreen> {
 
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Activity saved locally.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Activity saved locally.')));
     } on Object catch (error) {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -149,92 +151,87 @@ class _FinishScreenState extends State<FinishScreen> {
             borderRadius: BorderRadius.circular(24),
             child: SizedBox(
               height: 240,
-              child: TrainCenterMap(
-                routes: <MapRoute>[
-                  if (points.isNotEmpty)
-                    MapRoute(
-                      points: points,
-                      color: palette.route,
-                      borderColor: colorScheme.surface,
-                      strokeWidth: 6,
-                    ),
-                ],
-                tileSource: settings.mapTileSource,
-                interactive: false,
-                showAttribution: settings.mapTileSource == MapTileSource.openStreetMap,
+              child: Semantics(
+                label: 'Recorded route map',
+                container: true,
+                child: TrainCenterMap(
+                  routes: <MapRoute>[
+                    if (points.isNotEmpty)
+                      MapRoute(
+                        points: points,
+                        color: palette.route,
+                        borderColor: colorScheme.surface,
+                        strokeWidth: 6,
+                      ),
+                  ],
+                  tileSource: settings.mapTileSource,
+                  interactive: false,
+                  showAttribution:
+                      settings.mapTileSource == MapTileSource.openStreetMap,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 20),
 
           // --- Headline statistics -------------------------------------------
-          Row(
+          StatTileGrid(
             children: <Widget>[
-              Expanded(
-                child: StatTile(
-                  label: 'Distance',
-                  value: Formatters.distance(summary.distanceMeters, units)
-                      .split(' ')
-                      .first,
-                  unit: Formatters.distanceUnit(units),
-                  icon: Icons.route_rounded,
-                  emphasis: true,
-                ),
+              StatTile(
+                label: 'Distance',
+                value: Formatters.distance(
+                  summary.distanceMeters,
+                  units,
+                ).split(' ').first,
+                unit: Formatters.distanceUnit(units),
+                icon: Icons.route_rounded,
+                emphasis: true,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StatTile(
-                  label: 'Avg speed',
-                  value: Formatters.speed(summary.avgSpeedMps, units).split(' ').first,
-                  unit: Formatters.speed(summary.avgSpeedMps, units).split(' ').last,
-                  icon: Icons.speed_rounded,
-                ),
+              StatTile(
+                label: 'Avg speed',
+                value: Formatters.speed(
+                  summary.avgSpeedMps,
+                  units,
+                ).split(' ').first,
+                unit: Formatters.speed(
+                  summary.avgSpeedMps,
+                  units,
+                ).split(' ').last,
+                icon: Icons.speed_rounded,
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: StatTile(
-                  label: 'Moving time',
-                  value: Formatters.duration(summary.movingTimeMs),
-                  icon: Icons.timer_outlined,
-                ),
+              StatTile(
+                label: 'Moving time',
+                value: Formatters.duration(summary.movingTimeMs),
+                icon: Icons.timer_outlined,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StatTile(
-                  label: 'Elevation',
-                  value: Formatters.elevation(summary.elevationGainMeters, units)
-                      .split(' ')
-                      .first,
-                  unit: Formatters.elevation(summary.elevationGainMeters, units)
-                      .split(' ')
-                      .last,
-                  icon: Icons.trending_up_rounded,
-                ),
+              StatTile(
+                label: 'Elevation',
+                value: Formatters.elevation(
+                  summary.elevationGainMeters,
+                  units,
+                ).split(' ').first,
+                unit: Formatters.elevation(
+                  summary.elevationGainMeters,
+                  units,
+                ).split(' ').last,
+                icon: Icons.trending_up_rounded,
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: StatTile(
-                  label: 'Elapsed',
-                  value: Formatters.duration(summary.elapsedTimeMs),
-                  icon: Icons.hourglass_empty_rounded,
-                ),
+              StatTile(
+                label: 'Elapsed',
+                value: Formatters.duration(summary.elapsedTimeMs),
+                icon: Icons.hourglass_empty_rounded,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: StatTile(
-                  label: 'Max speed',
-                  value: Formatters.speed(summary.maxSpeedMps, units).split(' ').first,
-                  unit: Formatters.speed(summary.maxSpeedMps, units).split(' ').last,
-                  icon: Icons.flash_on_rounded,
-                ),
+              StatTile(
+                label: 'Max speed',
+                value: Formatters.speed(
+                  summary.maxSpeedMps,
+                  units,
+                ).split(' ').first,
+                unit: Formatters.speed(
+                  summary.maxSpeedMps,
+                  units,
+                ).split(' ').last,
+                icon: Icons.flash_on_rounded,
               ),
             ],
           ),
@@ -259,7 +256,8 @@ class _FinishScreenState extends State<FinishScreen> {
             },
             icon: const Icon(Icons.pedal_bike_rounded),
             label: Text(
-              context.read<RecordController>().selectedGear?.name ?? 'Choose gear',
+              context.read<RecordController>().selectedGear?.name ??
+                  'Choose gear',
             ),
           ),
           const SizedBox(height: 20),

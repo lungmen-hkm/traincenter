@@ -51,7 +51,8 @@ class GearScreen extends StatelessWidget {
               child: EmptyState(
                 icon: Icons.pedal_bike_rounded,
                 title: 'No gear yet',
-                message: 'Add a bicycle or a pair of shoes to keep track of the '
+                message:
+                    'Add a bicycle or a pair of shoes to keep track of the '
                     'distance you cover with each of them.',
               ),
             )
@@ -141,7 +142,7 @@ class _GearCard extends StatelessWidget {
                         Flexible(
                           child: Text(
                             gear.name,
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.titleSmall?.copyWith(
                               color: colorScheme.onSurface,
@@ -162,7 +163,7 @@ class _GearCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       '${gear.subtitle} · ${Formatters.distance(gear.totalDistanceMeters, units)}',
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
@@ -175,8 +176,14 @@ class _GearCard extends StatelessWidget {
                 onSelected: (value) => _onMenuSelected(context, value),
                 itemBuilder: (context) => const <PopupMenuEntry<String>>[
                   PopupMenuItem<String>(value: 'edit', child: Text('Edit')),
-                  PopupMenuItem<String>(value: 'default', child: Text('Set as default')),
-                  PopupMenuItem<String>(value: 'reset', child: Text('Reset distance')),
+                  PopupMenuItem<String>(
+                    value: 'default',
+                    child: Text('Set as default'),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'reset',
+                    child: Text('Reset distance'),
+                  ),
                   PopupMenuItem<String>(value: 'delete', child: Text('Delete')),
                 ],
               ),

@@ -6,6 +6,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/section_header.dart';
 import '../../core/widgets/stat_tile.dart';
+import '../../core/widgets/stat_tile_grid.dart';
 import '../../data/models/activity.dart';
 import '../settings/app_settings.dart';
 import 'activities_controller.dart';
@@ -32,7 +33,8 @@ class ActivitiesScreen extends StatelessWidget {
       return const EmptyState(
         icon: Icons.directions_bike_rounded,
         title: 'No activities yet',
-        message: 'Record your first ride or run — it will be stored locally '
+        message:
+            'Record your first ride or run — it will be stored locally '
             'on this device.',
       );
     }
@@ -41,53 +43,39 @@ class ActivitiesScreen extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: <Widget>[
         // --- Totals ---------------------------------------------------------
-        Row(
+        StatTileGrid(
           children: <Widget>[
-            Expanded(
-              child: StatTile(
-                label: 'Total distance',
-                value: Formatters.distance(controller.totalDistanceMeters, units)
-                    .split(' ')
-                    .first,
-                unit: Formatters.distanceUnit(units),
-                icon: Icons.route_rounded,
-                emphasis: true,
-              ),
+            StatTile(
+              label: 'Total distance',
+              value: Formatters.distance(
+                controller.totalDistanceMeters,
+                units,
+              ).split(' ').first,
+              unit: Formatters.distanceUnit(units),
+              icon: Icons.route_rounded,
+              emphasis: true,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: StatTile(
-                label: 'Moving time',
-                value: Formatters.duration(controller.totalMovingTimeMs),
-                icon: Icons.timer_outlined,
-              ),
+            StatTile(
+              label: 'Moving time',
+              value: Formatters.duration(controller.totalMovingTimeMs),
+              icon: Icons.timer_outlined,
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: StatTile(
-                label: 'Elevation',
-                value:
-                    Formatters.elevation(controller.totalElevationGainMeters, units)
-                        .split(' ')
-                        .first,
-                unit:
-                    Formatters.elevation(controller.totalElevationGainMeters, units)
-                        .split(' ')
-                        .last,
-                icon: Icons.trending_up_rounded,
-              ),
+            StatTile(
+              label: 'Elevation',
+              value: Formatters.elevation(
+                controller.totalElevationGainMeters,
+                units,
+              ).split(' ').first,
+              unit: Formatters.elevation(
+                controller.totalElevationGainMeters,
+                units,
+              ).split(' ').last,
+              icon: Icons.trending_up_rounded,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: StatTile(
-                label: 'Activities',
-                value: '${controller.activities.length}',
-                icon: Icons.list_alt_rounded,
-              ),
+            StatTile(
+              label: 'Activities',
+              value: '${controller.activities.length}',
+              icon: Icons.list_alt_rounded,
             ),
           ],
         ),
@@ -159,7 +147,7 @@ class _ActivityCard extends StatelessWidget {
                   children: <Widget>[
                     Text(
                       activity.displayTitle,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleSmall?.copyWith(
                         color: colorScheme.onSurface,
@@ -180,7 +168,10 @@ class _ActivityCard extends StatelessWidget {
                       children: <Widget>[
                         _InlineStat(
                           icon: Icons.route_rounded,
-                          label: Formatters.distance(activity.distanceMeters, units),
+                          label: Formatters.distance(
+                            activity.distanceMeters,
+                            units,
+                          ),
                           color: palette.route,
                         ),
                         _InlineStat(

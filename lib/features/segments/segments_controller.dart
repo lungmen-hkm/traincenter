@@ -23,7 +23,9 @@ class SegmentsController extends ChangeNotifier {
 
   /// The effort history of a segment, fastest first.
   List<SegmentEffort> effortsFor(int segmentId) =>
-      List<SegmentEffort>.unmodifiable(_efforts[segmentId] ?? const <SegmentEffort>[]);
+      List<SegmentEffort>.unmodifiable(
+        _efforts[segmentId] ?? const <SegmentEffort>[],
+      );
 
   /// The personal best effort of a segment, or `null`.
   SegmentEffort? personalBest(int segmentId) {
@@ -39,11 +41,7 @@ class SegmentsController extends ChangeNotifier {
   /// truth after a recording has been saved.
   Future<void> load() async {
     final segments = await _repository.listSegments();
-
-    final efforts = <int, List<SegmentEffort>>{};
-    for (final segment in segments) {
-      efforts[segment.id!] = await _repository.effortsFor(segment.id!);
-    }
+    final efforts = await _repository.allEffortsBySegment();
 
     _segments = segments;
     _efforts

@@ -1,8 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-        TrainCenter is privacy first: location access is the only sensitive
-        permission the app ever requests.
+        TrainCenter is privacy first. Location is the primary sensitive
+        permission; legacy storage access is limited to Android 9 and older
+        and is requested only when the user saves a PNG to Downloads.
     -->
     <!-- Precise location while the app is in use (recording a ride). -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
@@ -27,10 +28,25 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
     <!--
+        Android 13+ hides the foreground tracking notification unless this
+        runtime permission is granted. The recording itself still works when
+        it is denied, but the ongoing notification would not be visible.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!--
+        Android 9 and older only: needed to write exported PNGs into the
+        public Downloads folder. Android 10+ uses MediaStore instead.
+    -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28"/>
+
+    <!--
         The map tiles are downloaded from the public OpenStreetMap servers.
         This permission is only used for the tiles; no activity data ever
         leaves the device. Users who prefer a fully offline app can switch the
-        tile source to "Offline tiles" or "No tiles" in the settings.
+        tile source to "Offline map" or "No map tiles" in the settings.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
@@ -39,12 +55,14 @@
         android:label="TrainCenter"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:allowBackup="false"
         android:fullBackupContent="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
+            android:screenOrientation="portrait"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"

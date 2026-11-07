@@ -98,29 +98,38 @@ class TrainCenterApp extends StatelessWidget {
         ChangeNotifierProvider<RecordController>(
           create: (context) => RecordController(
             locationService: context.read<LocationService>(),
-            backgroundLocationService: context.read<BackgroundLocationService>(),
+            backgroundLocationService: context
+                .read<BackgroundLocationService>(),
             activityRepository: context.read<ActivityRepository>(),
             gearRepository: context.read<GearRepository>(),
             segmentEffortService: context.read<SegmentEffortService>(),
           ),
         ),
       ],
-      child: DynamicColorBuilder(
-        builder: (lightDynamic, darkDynamic) {
-          final lightScheme = lightDynamic?.harmonized() ??
-              AppTheme.fallbackScheme(Brightness.light);
-          final darkScheme = darkDynamic?.harmonized() ??
-              AppTheme.fallbackScheme(Brightness.dark);
+      child: Consumer<AppSettings>(
+        builder: (context, settings, _) => DynamicColorBuilder(
+          builder: (lightDynamic, darkDynamic) {
+            final lightScheme =
+                lightDynamic?.harmonized() ??
+                AppTheme.fallbackScheme(Brightness.light);
+            final darkScheme =
+                darkDynamic?.harmonized() ??
+                AppTheme.fallbackScheme(Brightness.dark);
 
-          return MaterialApp(
-            title: 'TrainCenter',
-            debugShowCheckedModeBanner: false,
-            themeMode: ThemeMode.system,
-            theme: AppTheme.build(lightScheme),
-            darkTheme: AppTheme.build(darkScheme),
-            home: const HomeShell(),
-          );
-        },
+            return MaterialApp(
+              title: 'TrainCenter',
+              debugShowCheckedModeBanner: false,
+              themeMode: switch (settings.themeMode) {
+                AppThemeMode.system => ThemeMode.system,
+                AppThemeMode.light => ThemeMode.light,
+                AppThemeMode.dark => ThemeMode.dark,
+              },
+              theme: AppTheme.build(lightScheme),
+              darkTheme: AppTheme.build(darkScheme),
+              home: const HomeShell(),
+            );
+          },
+        ),
       ),
     );
   }

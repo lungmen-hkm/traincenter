@@ -1,11 +1,17 @@
 # TrainCenter
 
-A **privacy-first, fully offline** activity tracker (a Strava-style app for bikes
+A **privacy-first, local-first** activity tracker (a Strava-style app for bikes
 and shoes) built with Flutter and Material Design 3.
 
 * **Package name:** `com.previx.traincenter`
 * **No account, no backend, no analytics, no telemetry.** Every activity, gear
   item and segment lives in a local SQLite database on the device.
+* **Platform:** Android 7.0+ (API 24), portrait phone layout. iOS, desktop and
+  web are not supported targets in this release.
+
+**Documentation:** [Privacy policy](docs/privacy.md) ·
+[Store listing kit](docs/store-listing.md) ·
+[Screenshots](docs/screenshots/) · [Changelog](CHANGELOG.md)
 
 ---
 
@@ -167,10 +173,28 @@ recording can never be saved by an accidental tap.
     **3×** pixel ratio, producing a deterministic **1260 × 1560** PNG. The
     export sheet only *scales the preview* with a `FittedBox`; it never
     resizes the capture boundary, so the saved image stays sharp and identical
-    across screen sizes. The three statistics are anchored to the bottom of
-    the card; the route fills the space above them.
-  * The PNG is written to the app documents directory (`…/exports/`) and can be
-    pushed to the **native share sheet** through `share_plus`.
+    across screen sizes. The card is rendered at **1× text scale**, so a large
+    system font cannot change the exported layout. The three statistics are
+    anchored to the bottom of the card; the route fills the space above them.
+  * **Save PNG** writes to the public **Downloads** folder — MediaStore on
+    Android 10+, direct write with legacy storage permission on Android 9 and
+    older — so the file is visible in Files without root.
+  * **Share** uses the native Android share sheet through `share_plus` and a
+    timestamped private copy in `…/app_flutter/exports/`.
+
+### 4.6 Appearance, accessibility and orientation
+* Settings → Appearance offers **System / Light / Dark**; the choice is stored
+  in the local `settings` table and wired to `MaterialApp.themeMode`. This
+  matters on devices such as MIUI on Android 9 that do not forward system dark
+  mode to apps.
+* At large text sizes the app switches segmented controls to radio lists,
+  statistics to a single column, export actions to stacked buttons and the
+  Record mini stats to full-width rows. The 320 × 640 dp / 200 % text layout is
+  covered by a widget test.
+* Maps expose meaningful TalkBack labels; icon buttons use tooltips.
+* The app is intentionally **portrait-only** in this release. Landscape made
+  the record panel cover the map and clip its own header; a dedicated
+  side-by-side layout is required before re-enabling it.
 
 ---
 
@@ -223,9 +247,13 @@ The map tile source is switchable in **Settings → Map**:
 
 | Source | Behaviour |
 | --- | --- |
-| `OpenStreetMap (online)` | Downloads tiles from the public OSM servers. Only tile coordinates leave the device — never a route. |
-| `Offline tiles (bundled)` | Reads `assets/maptiles/{z}/{x}/{y}.png`. See `assets/maptiles/README.md`. |
-| `No tiles (vector only)` | No tile request at all. The route is drawn as pure vector geometry. |
+| `Online map` | Downloads tiles from the public OSM servers. Tile coordinates and your IP address leave the device — never a route. |
+| `Offline map` | Reads `assets/maptiles/{z}/{x}/{y}.png`. See `assets/maptiles/README.md`. The current build has no PNG pack, so this option is disabled with an explanation. |
+| `No map tiles` | No tile request at all. The route is drawn as pure vector geometry. |
+
+Bulk OpenStreetMap tiles are deliberately not bundled. The optional online
+requests follow the OSM tile usage policy with a visible attribution and an
+identifying user agent.
 
 ---
 
@@ -254,25 +282,47 @@ removes its GPS track and its segment efforts.
 ## 8. Testing
 
 ```bash
+flutter analyze
 flutter test
 ```
+
+The suite currently has **42 passing tests**:
 
 * `test/widget_test.dart` — geo maths (haversine, segment projection,
   nearest-sample lookup) and the unit formatters.
 * `test/segment_matcher_test.dart` — segment matching and the personal-best
   logic (match / no match / slower effort / faster effort).
 * `test/app_test.dart` — boots the **whole application** against a real
-  SQLite database (`sqflite_common_ffi` in-memory FFI), checks the four
-  navigation destinations, the empty states, the repositories and the
-  slide-to-confirm gesture semantics.
+  SQLite database (`sqflite_common_ffi` in-memory FFI), checks navigation,
+  empty states, repositories, theme persistence, the export card and the
+  slide-to-confirm gesture. It also navigates the main screens at
+  **320 × 640 dp / 200 % text** to catch layout overflows.
+* `test/app_settings_test.dart` — theme and unit preference persistence.
+* `test/notification_permission_test.dart` — Android 13+ notification
+  permission grant, denial and missing-channel fallbacks.
+* `test/export_service_test.dart` — Downloads save channel and failure mapping.
+* `test/offline_tiles_test.dart` — bundled tile-pack detection.
+* `test/segments_test.dart` — grouped effort loading, PR promotion and segment
+  repository behaviour.
+
+The Android emulator run covered API 36; the real-device (Redmi Note 5,
+Android 9) screen-off/Doze path remains tracked in `workplan.md`.
 
 ---
 
 ## 9. Privacy summary
 
-* No `http` client, no API layer, no analytics SDK in the dependency tree.
+* No API layer, no analytics SDK and no telemetry. There is no app-level HTTP
+  client; the map dependency uses HTTP only for the optional OSM tile requests.
 * The only network capability is the optional OSM tile download, which can be
-  switched off entirely.
+  switched off entirely with **No map tiles**.
 * **Settings → Data → Erase all local data** wipes every table in one go.
 * The app declares only the permissions it needs: location, foreground
-  service, wake lock and (optional) internet access for map tiles.
+  service, notifications, wake lock, optional internet access for map tiles and
+  legacy storage access for PNG exports on Android 9 and older.
+* Android cloud backup is disabled.
+* Known limitation: the SQLite database is not encrypted at rest; see the
+  [privacy policy](docs/privacy.md) for the threat model.
+
+The canonical, store-facing version of this summary is
+[`docs/privacy.md`](docs/privacy.md).

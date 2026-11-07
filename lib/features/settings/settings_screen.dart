@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/db/app_database.dart';
+import '../../core/services/offline_tiles.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/widgets/adaptive_segmented_button.dart';
 import '../../core/widgets/section_header.dart';
 import '../activities/activities_controller.dart';
 import '../gear/gear_controller.dart';
@@ -16,19 +18,60 @@ class SettingsScreen extends StatelessWidget {
   /// Creates the settings screen.
   const SettingsScreen({super.key});
 
+  /// Cached result of the asset-manifest check for the settings session.
+  static final Future<bool> _offlineTilesAvailable = OfflineTiles.isAvailable();
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final settings = context.watch<AppSettings>();
-    final isRecordingActive =
-        context.watch<RecordController>().status.isActive;
+    final isRecordingActive = context.watch<RecordController>().status.isActive;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: <Widget>[
+          // --- Appearance ----------------------------------------------------
+          const SectionHeader(
+            title: 'Appearance',
+            subtitle: 'Light, dark, or follow the system',
+          ),
+          Card(
+            color: colorScheme.surfaceContainerLow,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Theme',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: colorScheme.onSurface,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  AdaptiveSegmentedButton<AppThemeMode>(
+                    key: const Key('theme-mode-selector'),
+                    segments: <ButtonSegment<AppThemeMode>>[
+                      for (final value in AppThemeMode.values)
+                        ButtonSegment<AppThemeMode>(
+                          value: value,
+                          label: Text(value.label),
+                        ),
+                    ],
+                    selected: <AppThemeMode>{settings.themeMode},
+                    onSelectionChanged: (selection) =>
+                        settings.setThemeMode(selection.first),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
           // --- Units -------------------------------------------------------
           const SectionHeader(title: 'Units'),
           Card(
@@ -46,7 +89,7 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  SegmentedButton<UnitSystem>(
+                  AdaptiveSegmentedButton<UnitSystem>(
                     segments: <ButtonSegment<UnitSystem>>[
                       for (final value in UnitSystem.values)
                         ButtonSegment<UnitSystem>(
@@ -79,11 +122,33 @@ class SettingsScreen extends StatelessWidget {
               child: Column(
                 children: <Widget>[
                   for (final source in MapTileSource.values)
-                    RadioListTile<MapTileSource>(
-                      value: source,
-                      title: Text(source.label),
-                      subtitle: Text(_tileDescription(source)),
-                    ),
+                    if (source != MapTileSource.offline)
+                      RadioListTile<MapTileSource>(
+                        value: source,
+                        title: Text(source.label),
+                        subtitle: Text(_tileDescription(source)),
+                      )
+                    else
+                      FutureBuilder<bool>(
+                        future: _offlineTilesAvailable,
+                        builder: (context, snapshot) {
+                          // Treat a manifest-read failure like a missing pack
+                          // instead of leaving the option stuck on "Checking".
+                          final available = snapshot.hasError
+                              ? false
+                              : snapshot.data;
+                          return RadioListTile<MapTileSource>(
+                            value: source,
+                            enabled: available ?? false,
+                            title: Text(source.label),
+                            subtitle: Text(switch (available) {
+                              true => _tileDescription(source),
+                              false => 'No offline tile pack is installed in this build.',
+                              null => 'Checking for bundled offline tiles…',
+                            }),
+                          );
+                        },
+                      ),
                 ],
               ),
             ),
@@ -141,7 +206,7 @@ class SettingsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  SegmentedButton<ExportBrightness>(
+                  AdaptiveSegmentedButton<ExportBrightness>(
                     segments: <ButtonSegment<ExportBrightness>>[
                       for (final value in ExportBrightness.values)
                         ButtonSegment<ExportBrightness>(
@@ -193,8 +258,8 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     'The only network request the app can ever make is the '
-                    'download of map tiles when "OpenStreetMap" is selected. '
-                    'Switch the map to "No tiles" for a completely silent app.',
+                    'download of map tiles when "Online map" is selected. '
+                    'Switch the map to "No map tiles" for a completely silent app.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -212,7 +277,9 @@ class SettingsScreen extends StatelessWidget {
             child: ListTile(
               leading: Icon(
                 Icons.delete_forever_rounded,
-                color: isRecordingActive ? colorScheme.outline : colorScheme.error,
+                color: isRecordingActive
+                    ? colorScheme.outline
+                    : colorScheme.error,
               ),
               title: const Text('Erase all local data'),
               subtitle: Text(
@@ -240,14 +307,15 @@ class SettingsScreen extends StatelessWidget {
 
   /// Describes a tile source.
   String _tileDescription(MapTileSource source) => switch (source) {
-        MapTileSource.openStreetMap =>
-          'Downloads public OSM tiles. Only tile coordinates are sent, '
-              'never your routes.',
-        MapTileSource.offline =>
-          'Reads local tiles from assets/maptiles. Falls back to vector geometry if not installed.',
-        MapTileSource.none =>
-          'No tiles at all: routes are drawn as pure vector geometry.',
-      };
+    MapTileSource.openStreetMap =>
+      'Downloads public OSM tiles. Sends tile coordinates and your IP, '
+          'never your routes.',
+    MapTileSource.offline =>
+      'Reads the offline tile pack bundled in this build, so no network '
+          'is used.',
+    MapTileSource.none =>
+      'No tiles at all: routes are drawn as pure vector geometry.',
+  };
 
   /// Wipes the local database after a confirmation.
   Future<void> _confirmWipe(BuildContext context) async {

@@ -18,8 +18,68 @@ void main() {
     databaseFactory = databaseFactoryFfiNoIsolate;
   });
 
-  test('the segments controller loads stored efforts with the segments',
-      () async {
+  test(
+    'the segments controller loads stored efforts with the segments',
+    () async {
+      final database = AppDatabase(
+        fileName: 'segments_${DateTime.now().microsecondsSinceEpoch}.db',
+      );
+      await database.open();
+      addTearDown(database.close);
+
+      final activityRepository = ActivityRepository(database);
+      final now = DateTime.now();
+      final activityId = await activityRepository.insertActivity(
+        Activity(
+          title: 'Test ride',
+          startedAt: now,
+          endedAt: now.add(const Duration(minutes: 5)),
+          distanceMeters: 1000,
+          movingTimeMs: 300000,
+          elapsedTimeMs: 310000,
+          avgSpeedMps: 3.3,
+          maxSpeedMps: 8,
+          elevationGainMeters: 0,
+          createdAt: now,
+        ),
+        const <TrackPoint>[],
+      );
+
+      final repository = SegmentRepository(database);
+      final segmentId = await repository.insertSegment(
+        Segment(
+          name: 'Test segment',
+          activityId: activityId,
+          startLatitude: -8.549236,
+          startLongitude: 116.1509175,
+          endLatitude: -8.54344,
+          endLongitude: 116.1567218,
+          distanceMeters: 907,
+          createdAt: now,
+        ),
+      );
+      await repository.insertEffort(
+        SegmentEffort(
+          segmentId: segmentId,
+          activityId: activityId,
+          timeMs: 80175,
+          avgSpeedMps: 11.31,
+          isPersonalBest: true,
+          achievedAt: now,
+        ),
+      );
+
+      final controller = SegmentsController(repository);
+      await controller.load();
+
+      expect(controller.segments, hasLength(1));
+      expect(controller.effortsFor(segmentId), hasLength(1));
+      expect(controller.personalBest(segmentId)?.timeMs, 80175);
+      expect(controller.personalBest(segmentId)?.isPersonalBest, isTrue);
+    },
+  );
+
+  test('efforts are grouped per segment, fastest first', () async {
     final database = AppDatabase(
       fileName: 'segments_${DateTime.now().microsecondsSinceEpoch}.db',
     );
@@ -30,7 +90,7 @@ void main() {
     final now = DateTime.now();
     final activityId = await activityRepository.insertActivity(
       Activity(
-        title: 'Test ride',
+        title: 'Grouping ride',
         startedAt: now,
         endedAt: now.add(const Duration(minutes: 5)),
         distanceMeters: 1000,
@@ -45,39 +105,54 @@ void main() {
     );
 
     final repository = SegmentRepository(database);
-    final segmentId = await repository.insertSegment(
-      Segment(
-        name: 'Test segment',
-        activityId: activityId,
-        startLatitude: -8.549236,
-        startLongitude: 116.1509175,
-        endLatitude: -8.54344,
-        endLongitude: 116.1567218,
-        distanceMeters: 907,
-        createdAt: now,
-      ),
+
+    Segment segment(String name) => Segment(
+      name: name,
+      activityId: activityId,
+      startLatitude: -8.549236,
+      startLongitude: 116.1509175,
+      endLatitude: -8.54344,
+      endLongitude: 116.1567218,
+      distanceMeters: 907,
+      createdAt: now,
     );
-    await repository.insertEffort(
-      SegmentEffort(
-        segmentId: segmentId,
-        activityId: activityId,
-        timeMs: 80175,
-        avgSpeedMps: 11.31,
-        isPersonalBest: true,
-        achievedAt: now,
-      ),
-    );
+
+    final firstId = await repository.insertSegment(segment('First'));
+    final secondId = await repository.insertSegment(segment('Second'));
+
+    Future<void> addEffort(int segmentId, int timeMs) {
+      return repository.insertEffort(
+        SegmentEffort(
+          segmentId: segmentId,
+          activityId: activityId,
+          timeMs: timeMs,
+          avgSpeedMps: 10,
+          achievedAt: now,
+        ),
+      );
+    }
+
+    // Insert the fastest effort of the first segment last: the ordering is
+    // applied by the query, not by the insertion order.
+    await addEffort(firstId, 110000);
+    await addEffort(secondId, 90000);
+    await addEffort(firstId, 80000);
+
+    final grouped = await repository.allEffortsBySegment();
+    expect(grouped[firstId]!.map((effort) => effort.timeMs), <int>[
+      80000,
+      110000,
+    ]);
+    expect(grouped[secondId]!.map((effort) => effort.timeMs), <int>[90000]);
 
     final controller = SegmentsController(repository);
     await controller.load();
-
-    expect(controller.segments, hasLength(1));
-    expect(controller.effortsFor(segmentId), hasLength(1));
-    expect(controller.personalBest(segmentId)?.timeMs, 80175);
-    expect(controller.personalBest(segmentId)?.isPersonalBest, isTrue);
+    expect(controller.personalBest(firstId)?.timeMs, 80000);
+    expect(controller.personalBest(secondId)?.timeMs, 90000);
   });
 
-  test('a slower pass is not a personal best', () {    final now = DateTime.now();
+  test('a slower pass is not a personal best', () {
+    final now = DateTime.now();
     final segment = Segment(
       name: 'Diagonal',
       startLatitude: -8.549236,

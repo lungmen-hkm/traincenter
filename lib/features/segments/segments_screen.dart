@@ -42,7 +42,8 @@ class SegmentsScreen extends StatelessWidget {
           ? const EmptyState(
               icon: Icons.add_road_rounded,
               title: 'No segments yet',
-              message: 'Pick a start and an end point on one of your recorded '
+              message:
+                  'Pick a start and an end point on one of your recorded '
                   'routes to create a segment and start chasing personal bests.',
             )
           : ListView(
@@ -108,7 +109,7 @@ class _SegmentCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       segment.name,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleSmall?.copyWith(
                         color: colorScheme.onSurface,
@@ -139,22 +140,29 @@ class _SegmentCard extends StatelessWidget {
                   ),
                 )
               else
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 4,
                   children: <Widget>[
-                    Icon(
-                      Icons.emoji_events_rounded,
-                      size: 18,
-                      color: palette.personalBest,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          Icons.emoji_events_rounded,
+                          size: 18,
+                          color: palette.personalBest,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'PR ${Formatters.duration(best.timeMs)}',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: colorScheme.onSurface,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'PR ${Formatters.duration(best.timeMs)}',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: colorScheme.onSurface,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
                     Text(
                       '${Formatters.speed(best.avgSpeedMps, units)} · '
                       '${history.length} effort${history.length == 1 ? '' : 's'}',

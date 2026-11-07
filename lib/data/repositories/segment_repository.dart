@@ -10,7 +10,10 @@ class SegmentRepository {
 
   /// Returns all segments, newest first.
   Future<List<Segment>> listSegments() async {
-    final rows = await _database.db.query('segments', orderBy: 'created_at DESC');
+    final rows = await _database.db.query(
+      'segments',
+      orderBy: 'created_at DESC',
+    );
     return rows.map(Segment.fromMap).toList(growable: false);
   }
 
@@ -43,7 +46,11 @@ class SegmentRepository {
 
   /// Deletes a segment together with all of its efforts.
   Future<void> deleteSegment(int id) async {
-    await _database.db.delete('segments', where: 'id = ?', whereArgs: <Object?>[id]);
+    await _database.db.delete(
+      'segments',
+      where: 'id = ?',
+      whereArgs: <Object?>[id],
+    );
   }
 
   /// Returns every effort recorded on a segment, fastest first.
@@ -55,6 +62,27 @@ class SegmentRepository {
       orderBy: 'time_ms ASC',
     );
     return rows.map(SegmentEffort.fromMap).toList(growable: false);
+  }
+
+  /// Returns every effort grouped by segment, fastest first within a group.
+  ///
+  /// The segments list shows the personal best of every segment, so it needs
+  /// the effort history of all segments at once. Loading it with a single
+  /// query avoids the N+1 pattern of calling [effortsFor] per segment.
+  Future<Map<int, List<SegmentEffort>>> allEffortsBySegment() async {
+    final rows = await _database.db.query(
+      'segment_efforts',
+      orderBy: 'segment_id ASC, time_ms ASC, id ASC',
+    );
+
+    final efforts = <int, List<SegmentEffort>>{};
+    for (final row in rows) {
+      final effort = SegmentEffort.fromMap(row);
+      efforts
+          .putIfAbsent(effort.segmentId, () => <SegmentEffort>[])
+          .add(effort);
+    }
+    return efforts;
   }
 
   /// Returns the fastest effort ever recorded on a segment.

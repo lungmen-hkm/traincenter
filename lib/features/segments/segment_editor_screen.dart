@@ -205,9 +205,8 @@ class _SegmentEditorScreenState extends State<SegmentEditorScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// Deletes the segment being edited, after confirmation.
@@ -331,29 +330,33 @@ class _SegmentEditorScreenState extends State<SegmentEditorScreen> {
                   borderRadius: BorderRadius.circular(24),
                   child: SizedBox(
                     height: 300,
-                    child: TrainCenterMap(
-                      // Rebuild the camera when the source activity changes.
-                      key: ValueKey<int?>(_activityId),
-                      routes: <MapRoute>[
-                        if (route.isNotEmpty)
-                          MapRoute(
-                            points: route,
-                            color: palette.route.withValues(alpha: 0.45),
-                            strokeWidth: 5,
-                          ),
-                        if (_start != null && _end != null)
-                          MapRoute(
-                            points: <LatLng>[
-                              LatLng(_start!.latitude, _start!.longitude),
-                              LatLng(_end!.latitude, _end!.longitude),
-                            ],
-                            color: palette.personalBest,
-                            strokeWidth: 5,
-                          ),
-                      ],
-                      markers: markers,
-                      tileSource: settings.mapTileSource,
-                      onTap: _handleTap,
+                    child: Semantics(
+                      label: 'Segment route map',
+                      container: true,
+                      child: TrainCenterMap(
+                        // Rebuild the camera when the source activity changes.
+                        key: ValueKey<int?>(_activityId),
+                        routes: <MapRoute>[
+                          if (route.isNotEmpty)
+                            MapRoute(
+                              points: route,
+                              color: palette.route.withValues(alpha: 0.45),
+                              strokeWidth: 5,
+                            ),
+                          if (_start != null && _end != null)
+                            MapRoute(
+                              points: <LatLng>[
+                                LatLng(_start!.latitude, _start!.longitude),
+                                LatLng(_end!.latitude, _end!.longitude),
+                              ],
+                              color: palette.personalBest,
+                              strokeWidth: 5,
+                            ),
+                        ],
+                        markers: markers,
+                        tileSource: settings.mapTileSource,
+                        onTap: _handleTap,
+                      ),
                     ),
                   ),
                 ),
@@ -368,10 +371,12 @@ class _SegmentEditorScreenState extends State<SegmentEditorScreen> {
                         subtitle: _start == null
                             ? 'Tap the map to set the start'
                             : '${_start!.latitude.toStringAsFixed(5)}, '
-                                '${_start!.longitude.toStringAsFixed(5)}',
+                                  '${_start!.longitude.toStringAsFixed(5)}',
                         color: palette.fast,
                         selected: _target == SegmentEndpointTarget.start,
-                        onTap: () => setState(() => _target = SegmentEndpointTarget.start),
+                        onTap: () => setState(
+                          () => _target = SegmentEndpointTarget.start,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -381,10 +386,11 @@ class _SegmentEditorScreenState extends State<SegmentEditorScreen> {
                         subtitle: _end == null
                             ? 'Tap the map to set the end'
                             : '${_end!.latitude.toStringAsFixed(5)}, '
-                                '${_end!.longitude.toStringAsFixed(5)}',
+                                  '${_end!.longitude.toStringAsFixed(5)}',
                         color: palette.slow,
                         selected: _target == SegmentEndpointTarget.end,
-                        onTap: () => setState(() => _target = SegmentEndpointTarget.end),
+                        onTap: () =>
+                            setState(() => _target = SegmentEndpointTarget.end),
                       ),
                     ),
                   ],
@@ -460,7 +466,9 @@ class _EndpointCard extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Material(
-      color: selected ? colorScheme.secondaryContainer : colorScheme.surfaceContainerLow,
+      color: selected
+          ? colorScheme.secondaryContainer
+          : colorScheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -475,7 +483,10 @@ class _EndpointCard extends StatelessWidget {
                   Container(
                     width: 10,
                     height: 10,
-                    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Text(

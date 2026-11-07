@@ -1,6 +1,5 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:widgets_to_image/widgets_to_image.dart';
@@ -8,6 +7,7 @@ import 'package:widgets_to_image/widgets_to_image.dart';
 import '../../core/services/export_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/widgets/adaptive_segmented_button.dart';
 import '../../data/models/activity.dart';
 import '../settings/app_settings.dart';
 import 'activity_export_card.dart';
@@ -102,7 +102,7 @@ class _ActivityExportSheetState extends State<ActivityExportSheet> {
     });
   }
 
-  /// Saves the PNG into the app's documents directory.
+  /// Saves the PNG into the device's public Downloads folder.
   Future<void> _save() async {
     setState(() => _busy = true);
     final bytes = await _capture();
@@ -112,11 +112,16 @@ class _ActivityExportSheetState extends State<ActivityExportSheet> {
     }
 
     try {
-      final result = await _exportService.savePng(
+      final location = await _exportService.savePngToDownloads(
         bytes,
         activityName: widget.activity.displayTitle,
       );
-      _showMessage('Saved ${result.file.path}');
+      _showMessage('Saved to $location');
+    } on PlatformException catch (error) {
+      _showMessage(
+        error.message ?? 'Could not save the image to Downloads.',
+        isError: true,
+      );
     } on Object catch (error) {
       _showMessage('Could not save the image: $error', isError: true);
     } finally {
@@ -167,13 +172,13 @@ class _ActivityExportSheetState extends State<ActivityExportSheet> {
     return switch (widget.settings.exportBrightness) {
       ExportBrightness.system => current,
       ExportBrightness.light => ColorScheme.fromSeed(
-          seedColor: current.primary,
-          brightness: Brightness.light,
-        ),
+        seedColor: current.primary,
+        brightness: Brightness.light,
+      ),
       ExportBrightness.dark => ColorScheme.fromSeed(
-          seedColor: current.primary,
-          brightness: Brightness.dark,
-        ),
+        seedColor: current.primary,
+        brightness: Brightness.dark,
+      ),
     };
   }
 
@@ -192,6 +197,21 @@ class _ActivityExportSheetState extends State<ActivityExportSheet> {
       Formatters.speed(widget.activity.avgSpeedMps, settings.units),
     );
     final durationValue = Formatters.duration(widget.activity.movingTimeMs);
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    final stackActions =
+        textScale > 1.35 || MediaQuery.sizeOf(context).width < 360;
+
+    final saveButton = OutlinedButton.icon(
+      onPressed: _busy ? null : _save,
+      icon: const Icon(Icons.download_rounded),
+      label: const Text('Save PNG'),
+    );
+    final shareButton = FilledButton.icon(
+      key: _shareButtonKey,
+      onPressed: _busy ? null : _share,
+      icon: const Icon(Icons.ios_share_rounded),
+      label: const Text('Share'),
+    );
 
     return SafeArea(
       // The preview uses a fixed logical size so that the captured PNG keeps
@@ -238,10 +258,10 @@ class _ActivityExportSheetState extends State<ActivityExportSheet> {
 
                 final availableWidth =
                     constraints.maxWidth - previewPadding * 2;
-                final scale =
-                    (availableWidth / cardWidth).clamp(0.0, 1.0).toDouble();
-                final previewHeight =
-                    cardHeight * scale + previewPadding * 2;
+                final scale = (availableWidth / cardWidth)
+                    .clamp(0.0, 1.0)
+                    .toDouble();
+                final previewHeight = cardHeight * scale + previewPadding * 2;
 
                 return ClipRRect(
                   borderRadius: BorderRadius.circular(24),
@@ -261,18 +281,23 @@ class _ActivityExportSheetState extends State<ActivityExportSheet> {
                             height: cardHeight,
                             child: WidgetsToImage(
                               controller: _controller,
-                              child: Theme(
-                                data: exportTheme,
-                                child: ActivityExportCard(
-                                  points: widget.points,
-                                  distanceValue: distanceValue.value,
-                                  distanceUnit: distanceValue.unit,
-                                  speedValue: speedValue.value,
-                                  speedUnit: speedValue.unit,
-                                  durationValue: durationValue,
-                                  activityLabel: _showLabel
-                                      ? widget.activity.displayTitle
-                                      : null,
+                              // The card is a fixed-size graphic: keep its
+                              // typography at 1x so accessibility text scaling
+                              // cannot change the exported PNG layout.
+                              child: MediaQuery.withNoTextScaling(
+                                child: Theme(
+                                  data: exportTheme,
+                                  child: ActivityExportCard(
+                                    points: widget.points,
+                                    distanceValue: distanceValue.value,
+                                    distanceUnit: distanceValue.unit,
+                                    speedValue: speedValue.value,
+                                    speedUnit: speedValue.unit,
+                                    durationValue: durationValue,
+                                    activityLabel: _showLabel
+                                        ? widget.activity.displayTitle
+                                        : null,
+                                  ),
                                 ),
                               ),
                             ),
@@ -287,7 +312,7 @@ class _ActivityExportSheetState extends State<ActivityExportSheet> {
             const SizedBox(height: 16),
 
             // --- Brightness ------------------------------------------------
-            SegmentedButton<ExportBrightness>(
+            AdaptiveSegmentedButton<ExportBrightness>(
               segments: <ButtonSegment<ExportBrightness>>[
                 for (final value in ExportBrightness.values)
                   ButtonSegment<ExportBrightness>(
@@ -316,32 +341,31 @@ class _ActivityExportSheetState extends State<ActivityExportSheet> {
               Text(
                 _message!,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: _messageIsError ? colorScheme.error : colorScheme.onSurfaceVariant,
+                  color: _messageIsError
+                      ? colorScheme.error
+                      : colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 12),
             ],
 
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _busy ? null : _save,
-                    icon: const Icon(Icons.download_rounded),
-                    label: const Text('Save PNG'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton.icon(
-                    key: _shareButtonKey,
-                    onPressed: _busy ? null : _share,
-                    icon: const Icon(Icons.ios_share_rounded),
-                    label: const Text('Share'),
-                  ),
-                ),
-              ],
-            ),
+            if (stackActions)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  saveButton,
+                  const SizedBox(height: 8),
+                  shareButton,
+                ],
+              )
+            else
+              Row(
+                children: <Widget>[
+                  Expanded(child: saveButton),
+                  const SizedBox(width: 12),
+                  Expanded(child: shareButton),
+                ],
+              ),
           ],
         ),
       ),

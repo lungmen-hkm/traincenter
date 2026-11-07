@@ -63,8 +63,8 @@ class MapMarker {
 /// The widget wraps `flutter_map` and isolates the *tile source* behind a
 /// single switch, which is what allows the map to run completely offline:
 ///  * [MapTileSource.openStreetMap] downloads tiles from the public OSM
-///    servers (only the tile coordinates are transmitted, never any activity
-///    data).
+///    servers (tile coordinates and the device IP address are transmitted,
+///    never any activity data).
 ///  * [MapTileSource.offline] reads tiles from the bundled `assets/maptiles`
 ///    folder.
 ///  * [MapTileSource.none] renders no tiles at all and shows the recorded
@@ -194,7 +194,8 @@ class _TrainCenterMapState extends State<TrainCenterMap> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final initialCenter = widget.initialCenter ??
+    final initialCenter =
+        widget.initialCenter ??
         (widget.routes.isNotEmpty && widget.routes.first.points.isNotEmpty
             ? widget.routes.first.points.first
             : const LatLng(0, 0));
@@ -270,13 +271,11 @@ class _TrainCenterMapState extends State<TrainCenterMap> {
               ),
           ],
         ),
-        if (widget.showAttribution && widget.tileSource == MapTileSource.openStreetMap)
+        if (widget.showAttribution &&
+            widget.tileSource == MapTileSource.openStreetMap)
           const RichAttributionWidget(
             attributions: <SourceAttribution>[
-              TextSourceAttribution(
-                'OpenStreetMap contributors',
-                onTap: null,
-              ),
+              TextSourceAttribution('OpenStreetMap contributors', onTap: null),
             ],
           ),
         if (_hasTileError && widget.tileSource == MapTileSource.offline)
@@ -305,11 +304,11 @@ class _TrainCenterMapState extends State<TrainCenterMap> {
 
   /// Returns the URL template for the given [source].
   String _urlTemplateFor(MapTileSource source) => switch (source) {
-        MapTileSource.openStreetMap =>
-          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-        MapTileSource.offline => 'assets/maptiles/{z}/{x}/{y}.png',
-        MapTileSource.none => '',
-      };
+    MapTileSource.openStreetMap =>
+      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    MapTileSource.offline => 'assets/maptiles/{z}/{x}/{y}.png',
+    MapTileSource.none => '',
+  };
 }
 
 /// A circular map pin used to mark the start / end of a route.

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import 'notification_permission.dart';
+
 /// Strategy that keeps the GPS stream alive while the app is in the
 /// background.
 ///
@@ -62,9 +64,13 @@ class AndroidForegroundService implements BackgroundLocationService {
   @override
   Future<void> prepare() async {
     if (!isSupported) return;
-    // The notification channel is created natively by geolocator when the
-    // foreground service starts, so there is nothing to do here. The method
-    // exists so alternative strategies (e.g. a dedicated
+    // Android 13+ hides the foreground-service notification unless the app is
+    // granted POST_NOTIFICATIONS. Request it right before tracking starts so
+    // the system prompt has context; a denial does not block the recording.
+    await NotificationPermission.requestIfNeeded();
+    // The notification channel itself is created natively by geolocator when
+    // the foreground service starts, so there is nothing else to do here. The
+    // method exists so alternative strategies (e.g. a dedicated
     // `flutter_background_service` isolate) can be plugged in without
     // touching the recording code.
   }

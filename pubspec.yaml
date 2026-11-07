@@ -1,5 +1,5 @@
 name: traincenter
-description: "TrainCenter — a privacy-first, fully offline activity tracker (Strava-like) for bikes and shoes."
+description: "TrainCenter — a privacy-first, local-first activity tracker (Strava-like) for bikes and shoes."
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -46,6 +46,7 @@ dependencies:
 
   # --- Utilities -------------------------------------------------------------
   intl: ^0.20.3
+  flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
   flutter_test:
@@ -60,3 +61,9 @@ flutter:
   assets:
     # Optional offline map tiles, see assets/maptiles/README.md.
     - assets/maptiles/
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/logo/icon.png"
+  adaptive_icon_foreground: "assets/logo/icon.png"

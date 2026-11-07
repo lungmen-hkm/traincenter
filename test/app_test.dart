@@ -13,9 +13,12 @@ import 'package:traincenter/core/services/location_service.dart';
 import 'package:traincenter/core/widgets/slide_to_confirm.dart';
 import 'package:traincenter/data/models/activity.dart';
 import 'package:traincenter/data/models/gear.dart';
+import 'package:traincenter/data/models/segment.dart';
+import 'package:traincenter/data/models/segment_effort.dart';
 import 'package:traincenter/data/models/track_point.dart';
 import 'package:traincenter/data/repositories/activity_repository.dart';
 import 'package:traincenter/data/repositories/gear_repository.dart';
+import 'package:traincenter/data/repositories/segment_repository.dart';
 import 'package:traincenter/features/export/activity_export_card.dart';
 import 'package:traincenter/features/record/record_controller.dart';
 import 'package:widgets_to_image/widgets_to_image.dart';
@@ -99,6 +102,33 @@ void main() {
     expect(find.text('Ready'), findsOneWidget);
   });
 
+  testWidgets('the appearance setting switches the app to dark mode', (
+    tester,
+  ) async {
+    final database = await openDatabase(tester);
+    addTearDown(database.close);
+
+    await bootApp(tester, database);
+
+    await tester.tap(find.byTooltip('Settings'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Appearance'), findsOneWidget);
+
+    final selector = find.byKey(const Key('theme-mode-selector'));
+    expect(selector, findsOneWidget);
+    await tester.tap(
+      find.descendant(of: selector, matching: find.text('Dark')),
+    );
+    await tester.pumpAndSettle();
+
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.themeMode, ThemeMode.dark);
+
+    final settingsContext = tester.element(find.text('Appearance'));
+    expect(Theme.of(settingsContext).brightness, Brightness.dark);
+  });
+
   testWidgets('navigates between the four destinations', (tester) async {
     final database = await openDatabase(tester);
     addTearDown(database.close);
@@ -170,7 +200,10 @@ void main() {
         ),
     ];
 
-    final activityId = await activityRepository.insertActivity(activity, points);
+    final activityId = await activityRepository.insertActivity(
+      activity,
+      points,
+    );
     expect(activityId, greaterThan(0));
 
     final stored = await activityRepository.findById(activityId);
@@ -183,8 +216,9 @@ void main() {
     expect(track.last.seq, 4);
   });
 
-  testWidgets('the slide to confirm action only fires past the threshold',
-      (tester) async {
+  testWidgets('the slide to confirm action only fires past the threshold', (
+    tester,
+  ) async {
     var confirmed = 0;
 
     await tester.pumpWidget(
@@ -260,7 +294,9 @@ void main() {
       // Decode the PNG so the alpha channel can be inspected.
       final codec = await ui.instantiateImageCodec(captured);
       final frame = await codec.getNextFrame();
-      final data = await frame.image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      final data = await frame.image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      );
       return data?.buffer.asUint8List();
     });
 
@@ -269,7 +305,11 @@ void main() {
 
     expect(rgba.length, greaterThan(4));
     // The top-left corner is not covered by the route or by any text.
-    expect(rgba[3], 0, reason: 'the exported PNG must have a transparent background');
+    expect(
+      rgba[3],
+      0,
+      reason: 'the exported PNG must have a transparent background',
+    );
     // The canvas is not empty either: the card really painted something.
     expect(
       rgba.skip(3).where((value) => value > 0).isNotEmpty,
@@ -278,8 +318,9 @@ void main() {
     );
   });
 
-  testWidgets('settings screen disables data wipe when recording is active',
-      (tester) async {
+  testWidgets('settings screen disables data wipe when recording is active', (
+    tester,
+  ) async {
     final database = await openDatabase(tester);
     addTearDown(database.close);
 
@@ -297,7 +338,10 @@ void main() {
       scrollable: find.byType(Scrollable).last,
     );
     expect(find.text('Erase all local data'), findsOneWidget);
-    expect(find.text('Removes every activity, gear and segment.'), findsOneWidget);
+    expect(
+      find.text('Removes every activity, gear and segment.'),
+      findsOneWidget,
+    );
 
     // Go back to shell
     await tester.tap(find.byType(BackButton));
@@ -306,8 +350,9 @@ void main() {
     }
 
     // Start recording
-    final recordController =
-        tester.element(find.byType(MaterialApp)).read<RecordController>();
+    final recordController = tester
+        .element(find.byType(MaterialApp))
+        .read<RecordController>();
     await recordController.start(allowBackground: false);
     for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 100));
@@ -324,8 +369,10 @@ void main() {
       200,
       scrollable: find.byType(Scrollable).last,
     );
-    expect(find.text('Finish or discard your active recording first.'),
-        findsOneWidget);
+    expect(
+      find.text('Finish or discard your active recording first.'),
+      findsOneWidget,
+    );
 
     // Tapping the disabled tile should not show confirmation dialog
     await tester.tap(find.text('Erase all local data'));
@@ -335,5 +382,103 @@ void main() {
     expect(find.text('Erase all data?'), findsNothing);
 
     recordController.stop();
+  });
+
+  testWidgets('screens stay usable at 320 dp and 200 % text', (tester) async {
+    tester.view.physicalSize = const Size(960, 1920);
+    tester.view.devicePixelRatio = 3.0;
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    final database = await openDatabase(tester);
+    addTearDown(database.close);
+
+    final now = DateTime.now();
+    final activityRepository = ActivityRepository(database);
+    final activityId = await activityRepository.insertActivity(
+      Activity(
+        title: 'Morning ride',
+        startedAt: now,
+        endedAt: now.add(const Duration(minutes: 30)),
+        distanceMeters: 15000,
+        movingTimeMs: 30 * 60 * 1000,
+        elapsedTimeMs: 32 * 60 * 1000,
+        avgSpeedMps: 8.3,
+        maxSpeedMps: 12.5,
+        elevationGainMeters: 210,
+        createdAt: now,
+      ),
+      const <TrackPoint>[],
+    );
+
+    final gearRepository = GearRepository(database);
+    await gearRepository.insertGear(
+      Gear(
+        name: 'Gravel bike',
+        brand: 'Specialized',
+        model: 'Diverge E5',
+        type: GearType.bicycle,
+        isDefault: true,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    final segmentRepository = SegmentRepository(database);
+    final segmentId = await segmentRepository.insertSegment(
+      Segment(
+        name: 'Diagonal segment',
+        activityId: activityId,
+        startLatitude: -8.549236,
+        startLongitude: 116.1509175,
+        endLatitude: -8.54344,
+        endLongitude: 116.1567218,
+        distanceMeters: 907,
+        createdAt: now,
+      ),
+    );
+    await segmentRepository.insertEffort(
+      SegmentEffort(
+        segmentId: segmentId,
+        activityId: activityId,
+        timeMs: 80175,
+        avgSpeedMps: 11.31,
+        isPersonalBest: true,
+        achievedAt: now,
+      ),
+    );
+
+    await bootApp(tester, database);
+    expect(find.text('Start recording'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    Future<void> openTab(String label) async {
+      await tester.tap(
+        find.descendant(
+          of: find.byType(NavigationBar),
+          matching: find.text(label),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(tester.takeException(), isNull, reason: '$label overflowed');
+    }
+
+    await openTab('Activities');
+    await openTab('Segments');
+    await openTab('Gear');
+
+    await tester.tap(find.byTooltip('Settings'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(tester.takeException(), isNull);
+
+    // Lay out the bottom of Settings, including the export controls and the
+    // privacy copy.
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -4000));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(tester.takeException(), isNull);
   });
 }

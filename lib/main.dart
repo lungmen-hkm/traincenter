@@ -12,11 +12,12 @@ import 'core/db/app_database.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // The record screen is designed for portrait. Allowing landscape without a
+  // dedicated side-by-side layout made the statistics panel cover the map and
+  // clip its own header on short screens, so keep the app portrait-only until
+  // a proper landscape layout exists.
   await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
     DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-    DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
   ]);
 
   // Open (and migrate) the on-device database.
