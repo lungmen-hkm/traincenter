@@ -11,7 +11,7 @@ and shoes) built with Flutter and Material Design 3.
 
 **Documentation:** [Privacy policy](docs/privacy.md) ·
 [Store listing kit](docs/store-listing.md) ·
-[Screenshots](docs/screenshots/) · [Changelog](CHANGELOG.md)
+[Screenshots](docs/screenshots/)
 
 ---
 
@@ -326,3 +326,17 @@ Android 9) screen-off/Doze path remains tracked in `workplan.md`.
 
 The canonical, store-facing version of this summary is
 [`docs/privacy.md`](docs/privacy.md).
+
+---
+
+## 10. License
+
+Distributed under the **GNU General Public License v3.0** (GPLv3). See [`LICENSE`](LICENSE) for the full license text.
+
+```text
+TrainCenter Copyright (C) 2026 lungmen-hkm
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
