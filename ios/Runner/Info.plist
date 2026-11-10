@@ -36,6 +36,11 @@
 	<string>TrainCenter keeps recording your route in the background so a long ride is not cut short.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>TrainCenter uses motion data to improve the accuracy of your recorded speed.</string>
+	<!-- TrainerCraft bridge: reads speed from a Bluetooth LE cycling sensor. -->
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>TrainCenter connects to your Bluetooth speed sensor to stream live speed into Minecraft.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>TrainCenter connects to your Bluetooth speed sensor to stream live speed into Minecraft.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

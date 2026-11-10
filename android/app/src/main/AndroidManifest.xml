@@ -35,6 +35,22 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <!--
+        TrainerCraft bridge: reads speed from a Bluetooth LE cycling speed
+        sensor (CSC service). Android 12+ uses the runtime SCAN/CONNECT
+        permissions; older versions use the legacy Bluetooth permissions.
+    -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30"/>
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30"/>
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+
+    <!--
         Android 9 and older only: needed to write exported PNGs into the
         public Downloads folder. Android 10+ uses MediaStore instead.
     -->
@@ -93,6 +109,8 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- Allows the TrainerCraft bridge to detect and open Minecraft. -->
+        <package android:name="com.mojang.minecraftpe"/>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

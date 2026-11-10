@@ -48,6 +48,11 @@ dependencies:
   intl: ^0.20.3
   flutter_launcher_icons: ^0.14.4
 
+  # --- TrainerCraft bridge ---------------------------------------------------
+  # Reads speed from a Bluetooth LE cycling speed sensor (CSC service) and
+  # exposes it to Minecraft through a local WebSocket server.
+  flutter_blue_plus: ^2.3.10
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

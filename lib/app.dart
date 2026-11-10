@@ -19,6 +19,7 @@ import 'features/record/record_controller.dart';
 import 'features/segments/segments_controller.dart';
 import 'features/settings/app_settings.dart';
 import 'features/shell/home_shell.dart';
+import 'features/trainercraft/trainercraft_controller.dart';
 
 /// Root widget of TrainCenter.
 ///
@@ -104,6 +105,13 @@ class TrainCenterApp extends StatelessWidget {
             gearRepository: context.read<GearRepository>(),
             segmentEffortService: context.read<SegmentEffortService>(),
           ),
+        ),
+
+        // --- TrainerCraft companion bridge ---------------------------------
+        // Registered at the root so the local WebSocket server and BLE
+        // connection keep running while the user visits the other tabs.
+        ChangeNotifierProvider<TrainerCraftController>(
+          create: (_) => TrainerCraftController(),
         ),
       ],
       child: Consumer<AppSettings>(

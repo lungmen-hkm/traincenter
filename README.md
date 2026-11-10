@@ -69,14 +69,15 @@ lib/
     ├── gear/                  # equipment management
     ├── segments/              # segment list + editor
     ├── export/                # transparent PNG card + share sheet
+    ├── trainercraft/          # TrainerCraft bridge (BLE → local WebSocket)
     └── settings/              # preferences + privacy
 ```
 
 **State management:** `provider` + `ChangeNotifier`. One controller per
 feature (`RecordController`, `ActivitiesController`, `GearController`,
-`SegmentsController`, `AppSettings`), each owning exactly one
-`ChangeNotifier` scope. Repositories are plain, `await`-friendly classes
-injected through `MultiProvider`.
+`SegmentsController`, `TrainerCraftController`, `AppSettings`), each owning
+exactly one `ChangeNotifier` scope. Repositories are plain, `await`-friendly
+classes injected through `MultiProvider`.
 
 ---
 
@@ -195,6 +196,27 @@ recording can never be saved by an accidental tap.
   the record panel cover the map and clip its own header; a dedicated
   side-by-side layout is required before re-enabling it.
 
+### 4.7 TrainerCraft bridge
+`lib/features/trainercraft/` — the former standalone TrainerCraft app bridge is
+now a first-class TrainCenter feature, reachable from the game-pad button in
+the top app bar.
+
+* **Bluetooth LE speed sensor:** scans for the Cycling Speed and Cadence (CSC)
+  service, decodes wheel revolutions and turns them into km/h. The wheel
+  circumference can be picked from the usual 700c / MTB presets.
+* **Local WebSocket server:** once the sensor is connected, the app listens on
+  port 8000 and streams `scriptevent trainercraft:set_speed <km/h>` commands to
+  Minecraft Bedrock five times per second. Nothing leaves the local network.
+* **Minecraft shortcuts:** the screen detects whether Minecraft Bedrock is
+  installed and can open the game (or its Play Store page) through a small
+  Android method channel in `MainActivity.kt`.
+* **Keeps running across tabs:** the controller lives at the application root,
+  so switching back to Record / Activities / Segments / Gear does not stop the
+  bridge. A small dot on the app-bar button shows when it is live.
+* **Fully theme-derived:** the screen uses only `ColorScheme` roles, so it
+  follows TrainCenter's dynamic Material You palette (including the wallpaper
+  colours on Android 12+) and the System / Light / Dark setting automatically.
+
 ---
 
 ## 5. Dependencies
@@ -211,6 +233,7 @@ recording can never be saved by an accidental tap.
 | `share_plus` + `cross_file` | Native share sheet |
 | `intl` | Locale-aware date/number formatting |
 | `uuid` | Stable identifiers |
+| `flutter_blue_plus` | Bluetooth LE speed sensor for the TrainerCraft bridge |
 
 ### Three deliberate deviations from the initial brief
 
@@ -285,7 +308,7 @@ flutter analyze
 flutter test
 ```
 
-The suite currently has **42 passing tests**:
+The suite currently has **43 passing tests**:
 
 * `test/widget_test.dart` — geo maths (haversine, segment projection,
   nearest-sample lookup) and the unit formatters.
@@ -293,8 +316,9 @@ The suite currently has **42 passing tests**:
   logic (match / no match / slower effort / faster effort).
 * `test/app_test.dart` — boots the **whole application** against a real
   SQLite database (`sqflite_common_ffi` in-memory FFI), checks navigation,
-  empty states, repositories, theme persistence, the export card and the
-  slide-to-confirm gesture. It also navigates the main screens at
+  empty states, repositories, theme persistence, the export card, the
+  slide-to-confirm gesture and opening the TrainerCraft bridge from the app
+  bar. It also navigates the main screens and TrainerCraft at
   **320 × 640 dp / 200 % text** to catch layout overflows.
 * `test/app_settings_test.dart` — theme and unit preference persistence.
 * `test/notification_permission_test.dart` — Android 13+ notification
@@ -314,11 +338,14 @@ Android 9) screen-off/Doze path remains tracked in `workplan.md`.
 * No API layer, no analytics SDK and no telemetry. There is no app-level HTTP
   client; the map dependency uses HTTP only for the optional OSM tile requests.
 * The only network capability is the optional OSM tile download, which can be
-  switched off entirely with **No map tiles**.
+  switched off entirely with **No map tiles**. The TrainerCraft bridge opens a
+  WebSocket server bound to the local network only (port 8000) so Minecraft on
+  the same device or LAN can read live speed; it never contacts the internet.
 * **Settings → Data → Erase all local data** wipes every table in one go.
 * The app declares only the permissions it needs: location, foreground
-  service, notifications, wake lock, optional internet access for map tiles and
-  legacy storage access for PNG exports on Android 9 and older.
+  service, notifications, wake lock, optional internet access for map tiles,
+  Bluetooth scan/connect for the TrainerCraft speed sensor and legacy storage
+  access for PNG exports on Android 9 and older.
 * Android cloud backup is disabled.
 * Known limitation: the SQLite database is not encrypted at rest; see the
   [privacy policy](docs/privacy.md) for the threat model.

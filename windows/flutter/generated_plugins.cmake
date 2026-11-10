@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   dynamic_color
+  flutter_blue_plus_winrt
   geolocator_windows
   share_plus
   url_launcher_windows

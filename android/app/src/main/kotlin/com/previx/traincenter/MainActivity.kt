@@ -2,6 +2,7 @@ package com.previx.traincenter
 
 import android.Manifest
 import android.content.ContentValues
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaScannerConnection
 import android.net.Uri
@@ -36,6 +37,9 @@ class MainActivity : FlutterActivity() {
 
     /** Channel used to save exported PNGs in the public Downloads folder. */
     private val downloadsChannel = "com.previx.traincenter/downloads"
+
+    /** Channel used by the TrainerCraft bridge to find and open Minecraft. */
+    private val minecraftChannel = "com.previx.traincenter/minecraft"
 
     /** Result of the notification permission dialog while it is open. */
     private var notificationPermissionResult: MethodChannel.Result? = null
@@ -76,6 +80,47 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, minecraftChannel)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "isInstalled" -> result.success(isMinecraftInstalled())
+                    "open" -> result.success(openMinecraft())
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    /** Whether Minecraft Bedrock is installed and has a launch intent. */
+    private fun isMinecraftInstalled(): Boolean {
+        return packageManager.getLaunchIntentForPackage(MINECRAFT_PACKAGE) != null
+    }
+
+    /**
+     * Opens Minecraft Bedrock, or the Play Store page when the game is missing.
+     *
+     * The TrainerCraft bridge only controls the Bedrock Edition, so both
+     * checks and launches target that package.
+     */
+    private fun openMinecraft(): Boolean {
+        val launchIntent = packageManager.getLaunchIntentForPackage(MINECRAFT_PACKAGE)
+        if (launchIntent != null) {
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(launchIntent)
+            return true
+        }
+
+        return try {
+            val storeIntent = Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("market://details?id=$MINECRAFT_PACKAGE"),
+            )
+            storeIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(storeIntent)
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 
     /**
@@ -313,6 +358,9 @@ class MainActivity : FlutterActivity() {
     }
 
     private companion object {
+        /** Package name of Minecraft Bedrock Edition. */
+        const val MINECRAFT_PACKAGE = "com.mojang.minecraftpe"
+
         /** Request code for the Android 13+ notification permission dialog. */
         const val NOTIFICATION_PERMISSION_REQUEST_CODE = 4301
 

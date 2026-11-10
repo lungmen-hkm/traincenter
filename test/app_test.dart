@@ -148,6 +148,31 @@ void main() {
     expect(find.text('No gear yet'), findsOneWidget);
   });
 
+  testWidgets('opens the TrainerCraft bridge from the app bar', (tester) async {
+    final database = await openDatabase(tester);
+    addTearDown(database.close);
+
+    await bootApp(tester, database);
+
+    await tester.tap(find.byTooltip('TrainerCraft'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('TrainerCraft'), findsOneWidget);
+    expect(find.text('Bridge is idle'), findsOneWidget);
+    expect(find.text('Start bridge'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Wheel circumference'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Wheel circumference'), findsOneWidget);
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Start recording'), findsOneWidget);
+  });
+
   testWidgets('stores a gear and lists it', (tester) async {
     final database = await openDatabase(tester);
     addTearDown(database.close);
@@ -468,6 +493,13 @@ void main() {
     await openTab('Activities');
     await openTab('Segments');
     await openTab('Gear');
+
+    await tester.tap(find.byTooltip('TrainerCraft'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull, reason: 'TrainerCraft overflowed');
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Settings'));
     for (var i = 0; i < 5; i++) {

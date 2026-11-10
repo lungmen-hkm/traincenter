@@ -8,11 +8,13 @@ import '../record/record_screen.dart';
 import '../segments/segments_controller.dart';
 import '../segments/segments_screen.dart';
 import '../settings/settings_screen.dart';
+import '../trainercraft/trainercraft_controller.dart';
+import '../trainercraft/trainercraft_screen.dart';
 
 /// The Material 3 shell of the application.
 ///
-/// A [NavigationBar] switches between the four main destinations. The
-/// settings live on their own route reachable from the app bar.
+/// A [NavigationBar] switches between the four main destinations. Settings and
+/// the TrainerCraft bridge live on their own routes reachable from the app bar.
 class HomeShell extends StatefulWidget {
   /// Creates the shell.
   const HomeShell({super.key});
@@ -35,6 +37,9 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final trainerCraftActive = context.select<TrainerCraftController, bool>(
+      (controller) => controller.isRunning,
+    );
 
     return Scaffold(
       body: SafeArea(
@@ -48,15 +53,18 @@ class _HomeShellState extends State<HomeShell> {
                 2 => 'Segments',
                 _ => 'Gear',
               },
+              trainerCraftActive: trainerCraftActive,
+              onOpenTrainerCraft: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const TrainerCraftScreen(),
+                ),
+              ),
               onOpenSettings: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
               ),
             ),
             Expanded(
-              child: IndexedStack(
-                index: _index,
-                children: _destinations,
-              ),
+              child: IndexedStack(index: _index, children: _destinations),
             ),
           ],
         ),
@@ -106,9 +114,16 @@ class _HomeShellState extends State<HomeShell> {
 
 /// The compact app bar shown above the destinations.
 class _TopAppBar extends StatelessWidget {
-  const _TopAppBar({required this.title, required this.onOpenSettings});
+  const _TopAppBar({
+    required this.title,
+    required this.trainerCraftActive,
+    required this.onOpenTrainerCraft,
+    required this.onOpenSettings,
+  });
 
   final String title;
+  final bool trainerCraftActive;
+  final VoidCallback onOpenTrainerCraft;
   final VoidCallback onOpenSettings;
 
   @override
@@ -128,6 +143,16 @@ class _TopAppBar extends StatelessWidget {
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,
               ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'TrainerCraft',
+            onPressed: onOpenTrainerCraft,
+            icon: Badge(
+              isLabelVisible: trainerCraftActive,
+              smallSize: 8,
+              backgroundColor: colorScheme.primary,
+              child: const Icon(Icons.sports_esports_outlined),
             ),
           ),
           IconButton(

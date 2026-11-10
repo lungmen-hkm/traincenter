@@ -6,8 +6,8 @@
 
 TrainCenter is a local-first activity tracker for bicycles and shoes. It has no
 account system, no backend, no advertising, no analytics and no telemetry. This
-policy explains exactly what stays on your device and the one optional network
-feature in the app.
+policy explains exactly what stays on your device and the optional network
+features in the app.
 
 ## The short version
 
@@ -18,7 +18,10 @@ feature in the app.
 * Online map tiles are optional. If you choose **Online map**, the app requests
   map tiles from OpenStreetMap servers; those requests contain the tile
   coordinates and your IP address, never your activity or route history.
-* Choose **No map tiles** for a build that makes no network requests at all.
+* Choose **No map tiles** for a build that makes no external network requests.
+* The optional TrainerCraft bridge connects to a Bluetooth speed sensor and
+  serves live speed to Minecraft over a WebSocket bound to your local network.
+  That server does not contact the internet and is off until you start it.
 * Android cloud backup is disabled.
 
 ## What TrainCenter stores on your device
@@ -60,6 +63,16 @@ policy applies to tile requests:
 The app does not use HTTP cookies, advertising identifiers, fingerprinting or
 third-party analytics. Map tiles are the only external network resource.
 
+### TrainerCraft local bridge
+
+When you start the TrainerCraft bridge, TrainCenter opens a WebSocket server on
+port 8000 bound to the device's local network. It sends the current speed to
+Minecraft Bedrock on the same device or local network. The server:
+
+* does not make outbound requests or contact the developer;
+* is active only while the bridge is running;
+* can be stopped at any time from the TrainerCraft screen or the app-bar button.
+
 ## Permissions and why they are needed
 
 | Permission | Purpose |
@@ -70,6 +83,8 @@ third-party analytics. Map tiles are the only external network resource.
 | Notifications (Android 13+) | Display the foreground-service notification. Denying it does not block recording; Android simply hides the notification. |
 | Wake lock | Keep the screen on during an active recording, when enabled. |
 | Internet / network state | Optional online map tiles only. |
+| Bluetooth scan / connect (Android 12+) | Find and read the speed sensor for the optional TrainerCraft bridge. |
+| Legacy Bluetooth (Android 11 and older) | Same speed-sensor connection on older Android versions. |
 | Storage (Android 9 and older only) | Write the PNG to the public Downloads folder. Newer Android versions use MediaStore without this permission. |
 
 ## Sharing and exports
@@ -125,6 +140,7 @@ do not send a copy of your database or your GPS tracks.
 | --- | --- |
 | Does the app collect or share any required user data types? | No. |
 | Is location collected? | Location is processed on-device for recording and is never transmitted to the developer. Online OSM tile requests contain tile coordinates, the app user agent and the device IP address, not the recorded route. |
+| Is data shared with third parties? | No. The optional TrainerCraft bridge sends live speed only to Minecraft on the local network; the developer never receives it. |
 | Is data encrypted in transit? | Not applicable: the app does not transmit user data to the developer. OSM tile requests use HTTPS. |
 | Can users request data deletion? | Yes: in-app erase and uninstall. |
 | Is data sold? | No. |
