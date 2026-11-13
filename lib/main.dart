@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'app.dart';
 import 'core/db/app_database.dart';
+import 'core/services/offline_map_store.dart';
 
 /// Entry point of TrainCenter.
 ///
@@ -23,6 +24,10 @@ Future<void> main() async {
   // Open (and migrate) the on-device database.
   final database = AppDatabase();
   await database.open();
+
+  // Resolve the app-support directory before the first map is built. This
+  // only creates a local folder; it never touches the network.
+  await OfflineMapStore.instance.initialize();
 
   runApp(TrainCenterApp(database: database));
 }

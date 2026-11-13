@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/services/offline_map_store.dart';
 import '../../core/theme/activity_palette.dart';
 import '../../core/utils/geo_utils.dart';
 import '../../core/utils/formatters.dart';
@@ -248,6 +249,7 @@ class _SegmentEditorScreenState extends State<SegmentEditorScreen> {
     final palette = context.activityPalette;
     final settings = context.watch<AppSettings>();
     final units = settings.units;
+    final offlineDirectoryPath = context.read<OfflineMapStore>().directoryPath;
 
     final activities = context.watch<ActivitiesController>().activities;
     final route = _points
@@ -355,6 +357,7 @@ class _SegmentEditorScreenState extends State<SegmentEditorScreen> {
                         ],
                         markers: markers,
                         tileSource: settings.mapTileSource,
+                        offlineDirectoryPath: offlineDirectoryPath,
                         onTap: _handleTap,
                       ),
                     ),

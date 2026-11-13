@@ -12,6 +12,8 @@ import '../gear/gear_controller.dart';
 import '../record/record_controller.dart';
 import '../segments/segments_controller.dart';
 import 'app_settings.dart';
+import 'offline_map_controller.dart';
+import 'offline_map_screen.dart';
 
 /// Application preferences and privacy information.
 class SettingsScreen extends StatelessWidget {
@@ -26,6 +28,7 @@ class SettingsScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final settings = context.watch<AppSettings>();
+    final offlineMaps = context.watch<OfflineMapController>();
     final isRecordingActive = context.watch<RecordController>().status.isActive;
 
     return Scaffold(
@@ -134,22 +137,55 @@ class SettingsScreen extends StatelessWidget {
                         builder: (context, snapshot) {
                           // Treat a manifest-read failure like a missing pack
                           // instead of leaving the option stuck on "Checking".
-                          final available = snapshot.hasError
+                          final bundled = snapshot.hasError
                               ? false
                               : snapshot.data;
+                          final downloaded = offlineMaps.hasTiles;
+                          final available = downloaded || (bundled ?? false);
+                          final subtitle = downloaded
+                              ? '${offlineMaps.summary.tileCount} '
+                                    'downloaded tiles · '
+                                    '${offlineMaps.summary.sizeLabel}. '
+                                    'No network is used.'
+                              : bundled == true
+                              ? _tileDescription(source)
+                              : snapshot.connectionState ==
+                                    ConnectionState.waiting
+                              ? 'Checking for offline tiles…'
+                              : 'No offline map downloaded yet. Use '
+                                    '"Download offline maps" below.';
                           return RadioListTile<MapTileSource>(
                             value: source,
-                            enabled: available ?? false,
+                            enabled: available,
                             title: Text(source.label),
-                            subtitle: Text(switch (available) {
-                              true => _tileDescription(source),
-                              false => 'No offline tile pack is installed in this build.',
-                              null => 'Checking for bundled offline tiles…',
-                            }),
+                            subtitle: Text(subtitle),
                           );
                         },
                       ),
                 ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            color: colorScheme.surfaceContainerLow,
+            child: ListTile(
+              leading: const Icon(Icons.download_for_offline_outlined),
+              title: const Text('Download offline maps'),
+              subtitle: Text(
+                offlineMaps.isDownloading
+                    ? 'Downloading offline tiles…'
+                    : offlineMaps.hasTiles
+                    ? '${offlineMaps.summary.tileCount} tiles · '
+                          '${offlineMaps.summary.sizeLabel} stored on this '
+                          'device.'
+                    : 'Save the area you need for use without a network.',
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const OfflineMapScreen(),
+                ),
               ),
             ),
           ),
@@ -257,9 +293,12 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'The only network request the app can ever make is the '
-                    'download of map tiles when "Online map" is selected. '
-                    'Switch the map to "No map tiles" for a completely silent app.',
+                    'The app only uses the network for map tiles: when '
+                    '"Online map" is selected, or when you choose to download '
+                    'an offline map. Both requests send tile coordinates and '
+                    'your IP address, never your routes. Switch the map to '
+                    '"No map tiles" and avoid downloads for a completely '
+                    'silent app.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -311,8 +350,7 @@ class SettingsScreen extends StatelessWidget {
       'Downloads public OSM tiles. Sends tile coordinates and your IP, '
           'never your routes.',
     MapTileSource.offline =>
-      'Reads the offline tile pack bundled in this build, so no network '
-          'is used.',
+      'Reads tiles downloaded to this device, so no network is used.',
     MapTileSource.none =>
       'No tiles at all: routes are drawn as pure vector geometry.',
   };

@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/services/location_service.dart';
+import '../../core/services/offline_map_store.dart';
 import '../../core/services/screen_wake_lock.dart';
 import '../../core/theme/activity_palette.dart';
 import '../../core/utils/formatters.dart';
@@ -147,6 +148,7 @@ class _RecordScreenState extends State<RecordScreen> {
     final palette = context.activityPalette;
     final controller = context.watch<RecordController>();
     final settings = context.watch<AppSettings>();
+    final offlineDirectoryPath = context.read<OfflineMapStore>().directoryPath;
 
     final points = controller.points
         .map((point) => LatLng(point.latitude, point.longitude))
@@ -194,6 +196,7 @@ class _RecordScreenState extends State<RecordScreen> {
                     ),
                 ],
                 tileSource: settings.mapTileSource,
+                offlineDirectoryPath: offlineDirectoryPath,
                 interactive: true,
                 fitToRoutes: false,
                 onMapReady: _centerOnLastKnownPosition,
@@ -435,11 +438,16 @@ class _ControlPanel extends StatelessWidget {
     final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
     final verticalStats =
         textScale > 1.35 || MediaQuery.sizeOf(context).width < 360;
+    // Runners think in pace, cyclists in speed. Follow the selected gear so
+    // the same live stat is useful for both activity types.
+    final usesPace = controller.selectedGear?.type == GearType.shoe;
     final secondaryStats = <Widget>[
       _MiniStat(
-        icon: Icons.speed_rounded,
-        label: 'Avg',
-        value: Formatters.speed(controller.avgSpeedMps, units),
+        icon: usesPace ? Icons.av_timer_rounded : Icons.speed_rounded,
+        label: usesPace ? 'Pace' : 'Avg',
+        value: usesPace
+            ? Formatters.pace(controller.avgSpeedMps, units)
+            : Formatters.speed(controller.avgSpeedMps, units),
         horizontal: verticalStats,
       ),
       _MiniStat(

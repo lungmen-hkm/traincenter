@@ -12,8 +12,8 @@ enum MapTileSource {
   /// pick [MapTileSource.none] or [MapTileSource.offline].
   openStreetMap,
 
-  /// Tiles are read from the bundled `assets/maptiles` folder, which makes
-  /// the map work completely offline.
+  /// Tiles downloaded by the user (or a bundled `assets/maptiles` pack) are
+  /// read from local storage, which makes the map work completely offline.
   offline,
 
   /// No tiles at all. The map renders the recorded route as pure vector

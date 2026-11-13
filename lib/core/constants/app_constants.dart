@@ -56,4 +56,40 @@ abstract final class AppConstants {
 
   /// Distance filter (metres) used for the high accuracy GPS stream.
   static const int gpsDistanceFilterMeters = 1;
+
+  /// Hard cap for a single offline map download.
+  ///
+  /// The public OpenStreetMap tile servers are run by volunteers. Keeping a
+  /// download to a small, deliberately selected area is both friendlier to
+  /// them and keeps the app's storage footprint predictable.
+  static const int offlineMapMaxTiles = 1500;
+
+  /// Lowest zoom level that can be selected for an offline download.
+  static const int offlineMapMinZoom = 10;
+
+  /// Highest zoom level that can be selected for an offline download.
+  static const int offlineMapMaxZoom = 17;
+
+  /// Default zoom range used by the offline map downloader.
+  static const int offlineMapDefaultMinZoom = 12;
+  static const int offlineMapDefaultMaxZoom = 16;
+
+  /// Zoom used when the download screen centres on the last known position.
+  ///
+  /// This is deliberately one level wider than the record screen's default
+  /// zoom so the downloaded area also covers the taller full-screen map.
+  static const int offlineMapPreviewZoom = 13;
+
+  /// Extra margin around the preview bounds, as a fraction of each span.
+  ///
+  /// The preview map is much shorter than the full-screen record map. Padding
+  /// the download area keeps the offline map covered when the user switches
+  /// back to the record screen.
+  static const double offlineMapDownloadMargin = 0.25;
+
+  /// Rough average size of one OSM raster tile, used for the size estimate.
+  ///
+  /// The real size varies with the amount of detail on the tile; this value
+  /// only exists to give the user an order of magnitude before downloading.
+  static const int offlineMapEstimatedTileBytes = 20 * 1024;
 }

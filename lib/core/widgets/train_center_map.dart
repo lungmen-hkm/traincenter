@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../features/settings/app_settings.dart';
+import '../services/offline_tile_provider.dart';
 
 /// A map polyline with an optional label.
 class MapRoute {
@@ -65,7 +66,8 @@ class MapMarker {
 ///  * [MapTileSource.openStreetMap] downloads tiles from the public OSM
 ///    servers (tile coordinates and the device IP address are transmitted,
 ///    never any activity data).
-///  * [MapTileSource.offline] reads tiles from the bundled `assets/maptiles`
+///  * [MapTileSource.offline] reads tiles downloaded by the user from the
+///    app-support directory, falling back to the bundled `assets/maptiles`
 ///    folder.
 ///  * [MapTileSource.none] renders no tiles at all and shows the recorded
 ///    route as pure vector geometry.
@@ -76,6 +78,7 @@ class TrainCenterMap extends StatefulWidget {
     required this.routes,
     this.markers = const <MapMarker>[],
     this.tileSource = MapTileSource.openStreetMap,
+    this.offlineDirectoryPath,
     this.onTap,
     this.initialCenter,
     this.initialZoom = 14,
@@ -96,6 +99,12 @@ class TrainCenterMap extends StatefulWidget {
 
   /// Where the tiles come from.
   final MapTileSource tileSource;
+
+  /// Directory containing user-downloaded `{z}/{x}/{y}.png` tiles.
+  ///
+  /// Only used by [MapTileSource.offline]. When `null`, the bundled
+  /// `assets/maptiles` pack is used instead.
+  final String? offlineDirectoryPath;
 
   /// Called when the user taps the map.
   final void Function(TapPosition tapDetails, LatLng tapPosition)? onTap;
@@ -237,7 +246,9 @@ class _TrainCenterMapState extends State<TrainCenterMap> {
           TileLayer(
             urlTemplate: _urlTemplateFor(widget.tileSource),
             tileProvider: widget.tileSource == MapTileSource.offline
-                ? AssetTileProvider()
+                ? OfflineTileProvider(
+                    directoryPath: widget.offlineDirectoryPath,
+                  )
                 : NetworkTileProvider(),
             userAgentPackageName: 'com.previx.traincenter',
             maxNativeZoom: 19,
@@ -271,8 +282,7 @@ class _TrainCenterMapState extends State<TrainCenterMap> {
               ),
           ],
         ),
-        if (widget.showAttribution &&
-            widget.tileSource == MapTileSource.openStreetMap)
+        if (widget.showAttribution && widget.tileSource != MapTileSource.none)
           const RichAttributionWidget(
             attributions: <SourceAttribution>[
               TextSourceAttribution('OpenStreetMap contributors', onTap: null),
@@ -283,7 +293,7 @@ class _TrainCenterMapState extends State<TrainCenterMap> {
             alignment: AttributionAlignment.bottomLeft,
             attributions: <SourceAttribution>[
               TextSourceAttribution(
-                'No offline tiles installed · Vector mode',
+                'Offline tiles missing · Vector mode',
                 onTap: null,
               ),
             ],
@@ -306,7 +316,10 @@ class _TrainCenterMapState extends State<TrainCenterMap> {
   String _urlTemplateFor(MapTileSource source) => switch (source) {
     MapTileSource.openStreetMap =>
       'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-    MapTileSource.offline => 'assets/maptiles/{z}/{x}/{y}.png',
+    MapTileSource.offline =>
+      widget.offlineDirectoryPath == null
+          ? 'assets/maptiles/{z}/{x}/{y}.png'
+          : 'offline://{z}/{x}/{y}.png',
     MapTileSource.none => '',
   };
 }

@@ -102,6 +102,47 @@ void main() {
     expect(find.text('Ready'), findsOneWidget);
   });
 
+  testWidgets('live pace follows the selected gear type', (tester) async {
+    final database = await openDatabase(tester);
+    addTearDown(database.close);
+
+    final now = DateTime.now();
+    final gearRepository = GearRepository(database);
+    await gearRepository.insertGear(
+      Gear(
+        name: 'Pegasus 40',
+        type: GearType.shoe,
+        isDefault: true,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    await bootApp(tester, database);
+
+    expect(find.text('Pace'), findsOneWidget);
+    expect(find.text('--:-- /km'), findsOneWidget);
+    expect(find.text('Avg'), findsNothing);
+
+    final bike = Gear(
+      name: 'Gravel bike',
+      type: GearType.bicycle,
+      createdAt: now,
+      updatedAt: now,
+    );
+    final bikeId = await gearRepository.insertGear(bike);
+    final controller = Provider.of<RecordController>(
+      tester.element(find.text('Pace')),
+      listen: false,
+    );
+    controller.selectGear(bike.copyWith(id: bikeId));
+    await tester.pump();
+
+    expect(find.text('Avg'), findsOneWidget);
+    expect(find.text('0.0 km/h'), findsOneWidget);
+    expect(find.text('Pace'), findsNothing);
+  });
+
   testWidgets('the appearance setting switches the app to dark mode', (
     tester,
   ) async {

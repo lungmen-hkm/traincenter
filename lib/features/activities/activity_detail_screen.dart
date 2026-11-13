@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/services/offline_map_store.dart';
 import '../../core/theme/activity_palette.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/section_header.dart';
@@ -74,6 +75,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     final palette = context.activityPalette;
     final settings = context.watch<AppSettings>();
     final units = settings.units;
+    final offlineDirectoryPath = context.read<OfflineMapStore>().directoryPath;
 
     final activity = _activity;
 
@@ -153,8 +155,8 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                       ),
                   ],
                   tileSource: settings.mapTileSource,
-                  showAttribution:
-                      settings.mapTileSource == MapTileSource.openStreetMap,
+                  offlineDirectoryPath: offlineDirectoryPath,
+                  showAttribution: settings.mapTileSource != MapTileSource.none,
                 ),
               ),
             ),

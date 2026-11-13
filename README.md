@@ -125,8 +125,8 @@ is incremented automatically every time an activity is saved.
   platform `LocationManager` instead of Google Play Services. That keeps the
   app fully offline/privacy-preserving and avoids depending on the fused
   provider, which delivered no fixes on a bare emulator image.
-* Live statistics: distance, current/avg speed, moving time, elapsed time,
-  elevation gain, sample count.
+* Live statistics: distance, current speed, average speed for bicycles or pace
+  for shoes, moving time, elapsed time, elevation gain, sample count.
 * **Background tracking** through `BackgroundLocationService`. On Android the
   `geolocator` foreground-service configuration (`ForegroundNotificationConfig`)
   promotes the GPS stream to a real foreground service, which is the only
@@ -270,12 +270,25 @@ The map tile source is switchable in **Settings → Map**:
 | Source | Behaviour |
 | --- | --- |
 | `Online map` | Downloads tiles from the public OSM servers. Tile coordinates and your IP address leave the device — never a route. |
-| `Offline map` | Reads `assets/maptiles/{z}/{x}/{y}.png`. See `assets/maptiles/README.md`. The current build has no PNG pack, so this option is disabled with an explanation. |
+| `Offline map` | Reads tiles downloaded in **Settings → Map → Download offline maps**, falling back to `assets/maptiles/{z}/{x}/{y}.png` when a bundled pack exists. |
 | `No map tiles` | No tile request at all. The route is drawn as pure vector geometry. |
 
-Bulk OpenStreetMap tiles are deliberately not bundled. The optional online
-requests follow the OSM tile usage policy with a visible attribution and an
-identifying user agent.
+### Downloading an area
+
+**Settings → Map → Download offline maps** opens a preview map. Pan and zoom
+to frame the area, choose the zoom range (10–17), then download. A 25 % margin
+is added around the preview so the taller full-screen record map stays covered.
+The screen shows the tile count and an approximate size before starting,
+reports progress, and lets the download be cancelled or the stored tiles
+cleared later. Tiles are written atomically to the app-support directory as
+`offline_maps/{z}/{x}/{y}.png`.
+
+A single download is capped at **1,500 tiles**. The downloader uses a small
+number of parallel requests, identifies itself with a TrainCenter user agent,
+and sends only the selected tile coordinates plus the device IP address. The
+map shows OSM attribution for downloaded tiles as well. Bulk OpenStreetMap
+tiles are deliberately not bundled, and the cap plus the visible area preview
+keep the feature within the OSM tile usage policy.
 
 ---
 
@@ -308,10 +321,13 @@ flutter analyze
 flutter test
 ```
 
-The suite currently has **43 passing tests**:
+The suite currently has **50 passing tests**:
 
 * `test/widget_test.dart` — geo maths (haversine, segment projection,
   nearest-sample lookup) and the unit formatters.
+* `test/formatters_test.dart` — pace rounding, unit suffixes and file sizes.
+* `test/offline_map_test.dart` — slippy-map tile maths, atomic download,
+  skip-existing resume behaviour, cancellation and storage clearing.
 * `test/segment_matcher_test.dart` — segment matching and the personal-best
   logic (match / no match / slower effort / faster effort).
 * `test/app_test.dart` — boots the **whole application** against a real
@@ -335,12 +351,14 @@ Android 9) screen-off/Doze path remains tracked in `workplan.md`.
 
 ## 9. Privacy summary
 
-* No API layer, no analytics SDK and no telemetry. There is no app-level HTTP
-  client; the map dependency uses HTTP only for the optional OSM tile requests.
-* The only network capability is the optional OSM tile download, which can be
-  switched off entirely with **No map tiles**. The TrainerCraft bridge opens a
-  WebSocket server bound to the local network only (port 8000) so Minecraft on
-  the same device or LAN can read live speed; it never contacts the internet.
+* No API layer, no analytics SDK and no telemetry. The app-level HTTP client is
+  used only to download offline map tiles on request; the map dependency uses
+  HTTP only for the optional OSM tile requests.
+* The only network capability is optional OSM map traffic: online map display
+  or a user-initiated offline download. Both can be avoided entirely with
+  **No map tiles** and no downloads. The TrainerCraft bridge opens a WebSocket
+  server bound to the local network only (port 8000) so Minecraft on the same
+  device or LAN can read live speed; it never contacts the internet.
 * **Settings → Data → Erase all local data** wipes every table in one go.
 * The app declares only the permissions it needs: location, foreground
   service, notifications, wake lock, optional internet access for map tiles,

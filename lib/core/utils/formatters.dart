@@ -121,18 +121,32 @@ abstract final class Formatters {
 
   /// Formats a pace (seconds per kilometre / per mile).
   static String pace(double metersPerSecond, UnitSystem units) {
-    if (metersPerSecond <= 0) return '--:-- /km';
+    final unit = switch (units) {
+      UnitSystem.metric => 'km',
+      UnitSystem.imperial => 'mi',
+    };
+    if (metersPerSecond <= 0) return '--:-- /$unit';
+
     final metersPerUnit = switch (units) {
       UnitSystem.metric => 1000.0,
       UnitSystem.imperial => 1609.344,
     };
     final secondsPerUnit = metersPerUnit / metersPerSecond;
-    final minutes = secondsPerUnit ~/ 60;
-    final seconds = (secondsPerUnit % 60).round();
-    final unit = switch (units) {
-      UnitSystem.metric => 'km',
-      UnitSystem.imperial => 'mi',
-    };
+
+    // Round once, before splitting the value into minutes and seconds. Doing
+    // the split first can produce an invalid "4:60" pace when the seconds
+    // component rounds up to a full minute.
+    final totalSeconds = secondsPerUnit.round();
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
     return '$minutes:${seconds.toString().padLeft(2, '0')} /$unit';
+  }
+
+  /// Formats a file size in bytes using binary units.
+  static String fileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    final kibibytes = bytes / 1024;
+    if (kibibytes < 1024) return '${_oneDecimal.format(kibibytes)} KB';
+    return '${_oneDecimal.format(kibibytes / 1024)} MB';
   }
 }

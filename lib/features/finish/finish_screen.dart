@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/services/offline_map_store.dart';
 import '../../core/theme/activity_palette.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/slide_to_confirm.dart';
@@ -129,6 +130,7 @@ class _FinishScreenState extends State<FinishScreen> {
     final settings = context.watch<AppSettings>();
     final summary = widget.summary;
     final units = settings.units;
+    final offlineDirectoryPath = context.read<OfflineMapStore>().directoryPath;
 
     final points = summary.points
         .map((point) => LatLng(point.latitude, point.longitude))
@@ -165,9 +167,9 @@ class _FinishScreenState extends State<FinishScreen> {
                       ),
                   ],
                   tileSource: settings.mapTileSource,
+                  offlineDirectoryPath: offlineDirectoryPath,
                   interactive: false,
-                  showAttribution:
-                      settings.mapTileSource == MapTileSource.openStreetMap,
+                  showAttribution: settings.mapTileSource != MapTileSource.none,
                 ),
               ),
             ),

@@ -7,6 +7,7 @@ import 'core/db/app_database.dart';
 import 'core/services/background_location_service.dart';
 import 'core/services/geolocator_location_service.dart';
 import 'core/services/location_service.dart';
+import 'core/services/offline_map_store.dart';
 import 'core/theme/app_theme.dart';
 import 'data/repositories/activity_repository.dart';
 import 'data/repositories/gear_repository.dart';
@@ -18,6 +19,7 @@ import 'features/gear/gear_controller.dart';
 import 'features/record/record_controller.dart';
 import 'features/segments/segments_controller.dart';
 import 'features/settings/app_settings.dart';
+import 'features/settings/offline_map_controller.dart';
 import 'features/shell/home_shell.dart';
 import 'features/trainercraft/trainercraft_controller.dart';
 
@@ -75,11 +77,16 @@ class TrainCenterApp extends StatelessWidget {
           create: (_) =>
               backgroundLocationService ?? createBackgroundLocationService(),
         ),
+        Provider<OfflineMapStore>.value(value: OfflineMapStore.instance),
 
         // --- State ----------------------------------------------------------
         ChangeNotifierProvider<AppSettings>(
           create: (context) =>
               AppSettings(context.read<SettingsRepository>())..load(),
+        ),
+        ChangeNotifierProvider<OfflineMapController>(
+          create: (context) =>
+              OfflineMapController(context.read<OfflineMapStore>())..load(),
         ),
         ChangeNotifierProvider<ActivitiesController>(
           create: (context) => ActivitiesController(

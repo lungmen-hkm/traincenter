@@ -1,7 +1,9 @@
 # Offline map tiles
 
-TrainCenter can render the map **completely offline** by reading the tiles
-from this folder instead of downloading them.
+TrainCenter can render the map **completely offline** by reading tiles from
+this folder. This is the optional *bundled* fallback; tiles downloaded in
+**Settings → Map → Download offline maps** are stored in the app-support
+directory and are preferred when both are present.
 
 ## Expected structure
 
@@ -22,8 +24,9 @@ assets/maptiles/
 * `{z}` is the zoom level (integer).
 * `{x}` is the column, `{y}` is the row (integer), using the Web Mercator
   (`EPSG:3857`) projection — the same projection OpenStreetMap uses.
-* The tiles are addressed through the `flutter_map`
-  `AssetTileProvider`, so they must be declared as assets in `pubspec.yaml`.
+* The tiles are addressed through TrainCenter's `OfflineTileProvider`, which
+  reads a downloaded file first and falls back to the matching asset, so they
+  must be declared as assets in `pubspec.yaml`.
 
 ## Enabling the offline mode
 
@@ -36,14 +39,17 @@ assets/maptiles/
        - assets/maptiles/
    ```
 
-3. Open **Settings → Map → Offline tiles (bundled)**.
+3. Open **Settings → Map → Offline map**.
+
+You can also leave this folder empty and use **Download offline maps** in
+Settings to save a selected area from OpenStreetMap at runtime.
 
 ## Notes
 
 * This folder is intentionally empty in the repository: shipping a tile
   pyramid would add tens of megabytes to the app.
-* When the folder is empty and the offline source is selected, `flutter_map`
-  renders empty tiles; the recorded route is still drawn as vector geometry
-  on top of the map.
-* The "No tiles (vector only)" source works without any asset at all and is
-  the recommended option for a 100 % silent, offline-only build.
+* When neither a downloaded tile nor a bundled tile exists, the recorded route
+  is still drawn as vector geometry on top of the map, and the map shows an
+  “Offline tiles missing · Vector mode” badge.
+* The "No map tiles" source works without any asset at all and is the
+  recommended option for a 100 % silent, offline-only build.

@@ -1,6 +1,6 @@
 # TrainCenter privacy policy
 
-**Effective date:** 7 November 2026
+**Effective date:** 12 November 2026
 
 **App:** TrainCenter (`com.previx.traincenter`)
 
@@ -15,10 +15,14 @@ features in the app.
   your device.
 * We do not collect, sell, rent or share personal data.
 * The app has no account, login, cloud sync or crash-reporting SDK.
-* Online map tiles are optional. If you choose **Online map**, the app requests
-  map tiles from OpenStreetMap servers; those requests contain the tile
-  coordinates and your IP address, never your activity or route history.
-* Choose **No map tiles** for a build that makes no external network requests.
+* Map tiles are optional. If you choose **Online map**, the app requests map
+  tiles from OpenStreetMap servers; those requests contain the tile coordinates
+  and your IP address, never your activity or route history.
+* You can also choose to download a selected area for offline use. That
+  download sends the selected tile coordinates and your IP address to the same
+  OpenStreetMap tile servers and stores the resulting images on your device.
+* Choose **No map tiles** and avoid offline downloads for a build that makes no
+  external network requests.
 * The optional TrainerCraft bridge connects to a Bluetooth speed sensor and
   serves live speed to Minecraft over a WebSocket bound to your local network.
   That server does not contact the internet and is off until you start it.
@@ -50,10 +54,11 @@ microphone, SMS or call logs.
 TrainCenter declares the Android `INTERNET` and `ACCESS_NETWORK_STATE`
 permissions because the map can optionally load tiles.
 
-| Map setting | Network behaviour |
+| Map setting / action | Network behaviour |
 | --- | --- |
-| **Online map** | Requests map tiles from the public OpenStreetMap tile servers. The request contains the tile coordinates, a TrainCenter/Flutter user agent and your IP address. It does not contain your activity history, route, account or a persistent identifier. |
-| **Offline map** | Reads a PNG tile pack bundled in the app. No network request is made. The current public build does not include a tile pack, so this option is disabled and the reason is shown in Settings. |
+| **Online map** | Requests map tiles from the public OpenStreetMap tile servers. The request contains the tile coordinates, a TrainCenter user agent and your IP address. It does not contain your activity history, route, account or a persistent identifier. |
+| **Download offline maps** | Requests only the tile coordinates needed for the area you frame and the zoom range you select. The request contains a TrainCenter user agent and your IP address; the downloaded PNGs are stored in the app's private support directory. |
+| **Offline map** | Reads tiles previously downloaded by you, or a PNG tile pack bundled in the app, if present. No network request is made while viewing the map. |
 | **No map tiles** | No tile requests at all. Routes are drawn as vector lines on a neutral canvas. |
 
 OpenStreetMap is operated by the OpenStreetMap Foundation. Its own privacy
@@ -61,7 +66,8 @@ policy applies to tile requests:
 <https://osmfoundation.org/wiki/Privacy_Policy>.
 
 The app does not use HTTP cookies, advertising identifiers, fingerprinting or
-third-party analytics. Map tiles are the only external network resource.
+third-party analytics. OpenStreetMap tile traffic is the only external network
+resource, and offline downloads are capped and initiated only by you.
 
 ### TrainerCraft local bridge
 
@@ -82,7 +88,7 @@ Minecraft Bedrock on the same device or local network. The server:
 | Foreground service (location) | Show the ongoing tracking notification and keep the GPS stream alive. |
 | Notifications (Android 13+) | Display the foreground-service notification. Denying it does not block recording; Android simply hides the notification. |
 | Wake lock | Keep the screen on during an active recording, when enabled. |
-| Internet / network state | Optional online map tiles only. |
+| Internet / network state | Optional online map tiles and user-initiated offline map downloads. |
 | Bluetooth scan / connect (Android 12+) | Find and read the speed sensor for the optional TrainerCraft bridge. |
 | Legacy Bluetooth (Android 11 and older) | Same speed-sensor connection on older Android versions. |
 | Storage (Android 9 and older only) | Write the PNG to the public Downloads folder. Newer Android versions use MediaStore without this permission. |
@@ -101,7 +107,10 @@ folder. It remains there until you delete it.
 * Data stays on the device until you delete it.
 * **Settings → Data → Erase all local data** deletes all activities, tracks,
   gear, segments, efforts and settings.
-* Uninstalling the app removes its private database and temporary exports.
+* **Settings → Map → Download offline maps → Clear downloaded maps** deletes
+  every downloaded tile without touching activities or routes.
+* Uninstalling the app removes its private database, downloaded map tiles and
+  temporary exports.
 * Files you saved manually to Downloads are not removed by uninstalling the app;
   delete them with your file manager.
 * Private temporary share copies are kept in the app sandbox. They are removed
@@ -139,7 +148,7 @@ do not send a copy of your database or your GPS tracks.
 | Question | Answer |
 | --- | --- |
 | Does the app collect or share any required user data types? | No. |
-| Is location collected? | Location is processed on-device for recording and is never transmitted to the developer. Online OSM tile requests contain tile coordinates, the app user agent and the device IP address, not the recorded route. |
+| Is location collected? | Location is processed on-device for recording and is never transmitted to the developer. OSM tile requests — online map display or a user-initiated offline download — contain tile coordinates, the app user agent and the device IP address, not the recorded route. |
 | Is data shared with third parties? | No. The optional TrainerCraft bridge sends live speed only to Minecraft on the local network; the developer never receives it. |
 | Is data encrypted in transit? | Not applicable: the app does not transmit user data to the developer. OSM tile requests use HTTPS. |
 | Can users request data deletion? | Yes: in-app erase and uninstall. |
