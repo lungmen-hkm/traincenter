@@ -63,6 +63,7 @@ debug.py
 
 # Android launcher/splash artwork must ship with the app
 !android/app/src/main/res/mipmap-*/ic_launcher*.png
+!android/app/src/main/res/mipmap-*/launcher_icon.png
 !android/app/src/main/res/drawable-nodpi/*.png
 
 workplan.md

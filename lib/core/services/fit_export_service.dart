@@ -32,6 +32,9 @@ class FitExportService {
   /// Product name written into the FIT file id message.
   static const String _productName = 'TrainCenter';
 
+  /// Software version encoded in the FIT file creator message (1.10.0).
+  static const int _softwareVersion = 110;
+
   /// Encodes [activity] and its GPS [points] into FIT bytes.
   ///
   /// [gearType] determines the FIT sport: bicycles are encoded as cycling,
@@ -112,7 +115,10 @@ class FitExportService {
   /// Writes the optional file creator message.
   void _writeFileCreator(fit.Encode encoder) {
     final message = fit.FileCreatorMesg()
-      ..setFieldValue(fit.FileCreatorMesg.fieldSoftwareVersion, 100)
+      ..setFieldValue(
+        fit.FileCreatorMesg.fieldSoftwareVersion,
+        _softwareVersion,
+      )
       ..setFieldValue(fit.FileCreatorMesg.fieldHardwareVersion, 1);
     _writeMessage(encoder, message);
   }
