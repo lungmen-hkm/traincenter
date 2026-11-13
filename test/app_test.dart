@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
@@ -9,6 +10,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:traincenter/app.dart';
 import 'package:traincenter/core/db/app_database.dart';
 import 'package:traincenter/core/services/background_location_service.dart';
+import 'package:traincenter/core/services/export_service.dart';
 import 'package:traincenter/core/services/location_service.dart';
 import 'package:traincenter/core/widgets/slide_to_confirm.dart';
 import 'package:traincenter/data/models/activity.dart';
@@ -19,6 +21,7 @@ import 'package:traincenter/data/models/track_point.dart';
 import 'package:traincenter/data/repositories/activity_repository.dart';
 import 'package:traincenter/data/repositories/gear_repository.dart';
 import 'package:traincenter/data/repositories/segment_repository.dart';
+import 'package:traincenter/data/repositories/settings_repository.dart';
 import 'package:traincenter/features/export/activity_export_card.dart';
 import 'package:traincenter/features/record/record_controller.dart';
 import 'package:widgets_to_image/widgets_to_image.dart';
@@ -280,6 +283,104 @@ void main() {
     expect(track, hasLength(5));
     expect(track.first.seq, 0);
     expect(track.last.seq, 4);
+  });
+
+  testWidgets('exports an activity as FIT from the detail screen', (
+    tester,
+  ) async {
+    final database = await openDatabase(tester);
+    addTearDown(database.close);
+
+    final now = DateTime.now();
+    final gearRepository = GearRepository(database);
+    final gearId = await gearRepository.insertGear(
+      Gear(
+        name: 'Gravel bike',
+        type: GearType.bicycle,
+        isDefault: true,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    final activityRepository = ActivityRepository(database);
+    final activityId = await activityRepository.insertActivity(
+      Activity(
+        title: 'Morning ride',
+        gearId: gearId,
+        startedAt: now,
+        endedAt: now.add(const Duration(minutes: 30)),
+        distanceMeters: 15000,
+        movingTimeMs: 25 * 60 * 1000,
+        elapsedTimeMs: 30 * 60 * 1000,
+        avgSpeedMps: 10,
+        maxSpeedMps: 14.5,
+        elevationGainMeters: 210,
+        createdAt: now,
+      ),
+      <TrackPoint>[
+        for (var i = 0; i < 3; i++)
+          TrackPoint(
+            seq: i,
+            latitude: 48.85 + i * 0.001,
+            longitude: 2.35 + i * 0.001,
+            altitude: 35 + i * 2,
+            speed: 8.5 + i,
+            timestamp: now.add(Duration(seconds: i * 10)),
+          ),
+      ],
+    );
+    expect(activityId, greaterThan(0));
+
+    // Avoid map-tile network requests while the detail screen is open.
+    await SettingsRepository(database).write('map_tile_source', 'none');
+
+    const channel = MethodChannel('com.previx.traincenter/downloads');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    MethodCall? received;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      received = call;
+      return 'Downloads/morning_ride_123.fit';
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+    await bootApp(tester, database);
+    await tester.tap(find.text('Activities'));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 120));
+    }
+
+    await tester.tap(find.text('Morning ride'));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 120));
+    }
+
+    await tester.scrollUntilVisible(
+      find.text('Export FIT file'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('Export FIT file'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Export FIT'), findsOneWidget);
+    expect(find.text('Cycling'), findsOneWidget);
+    expect(find.text('3 GPS samples'), findsOneWidget);
+    expect(find.text('Save FIT'), findsOneWidget);
+    expect(find.text('Share'), findsOneWidget);
+
+    await tester.tap(find.text('Save FIT'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Saved to Downloads/morning_ride_123.fit'),
+      findsOneWidget,
+    );
+    expect(received?.method, 'saveFileToDownloads');
+    final arguments = received!.arguments as Map<Object?, Object?>;
+    expect(arguments['fileName'], matches(RegExp(r'^morning_ride_\d+\.fit$')));
+    expect(arguments['mimeType'], ActivityExportService.fitMimeType);
   });
 
   testWidgets('the slide to confirm action only fires past the threshold', (

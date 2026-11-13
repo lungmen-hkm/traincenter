@@ -1,6 +1,6 @@
 # TrainCenter privacy policy
 
-**Effective date:** 12 November 2026
+**Effective date:** 13 November 2026
 
 **App:** TrainCenter (`com.previx.traincenter`)
 
@@ -41,10 +41,10 @@ The local SQLite database can contain:
 * segment definitions and segment efforts, including personal-best flags;
 * app settings such as appearance, units and map source.
 
-PNG exports are written to the public **Downloads** folder when you tap
-**Save PNG** (MediaStore on Android 10+, public Downloads with the legacy
-storage permission on Android 9 and older). A private temporary copy is kept in
-the app sandbox while using the system share sheet.
+PNG and FIT exports are written to the public **Downloads** folder when you
+tap **Save PNG** or **Save FIT** (MediaStore on Android 10+, public Downloads
+with the legacy storage permission on Android 9 and older). A private temporary
+copy is kept in the app sandbox while using the system share sheet.
 
 The app does not request access to contacts, calendars, photos, the camera, the
 microphone, SMS or call logs.
@@ -91,16 +91,17 @@ Minecraft Bedrock on the same device or local network. The server:
 | Internet / network state | Optional online map tiles and user-initiated offline map downloads. |
 | Bluetooth scan / connect (Android 12+) | Find and read the speed sensor for the optional TrainerCraft bridge. |
 | Legacy Bluetooth (Android 11 and older) | Same speed-sensor connection on older Android versions. |
-| Storage (Android 9 and older only) | Write the PNG to the public Downloads folder. Newer Android versions use MediaStore without this permission. |
+| Storage (Android 9 and older only) | Write PNG and FIT exports to the public Downloads folder. Newer Android versions use MediaStore without this permission. |
 
 ## Sharing and exports
 
-When you tap **Share**, Android's system share sheet lets you send the PNG to an
-app you choose. That app receives the image and handles it under its own privacy
-policy. TrainCenter does not upload the image anywhere itself.
+When you tap **Share**, Android's system share sheet lets you send the PNG or FIT
+file to an app you choose. That app receives the exported file and handles it
+under its own privacy policy. TrainCenter does not upload the export anywhere
+itself.
 
-When you tap **Save PNG**, the file is written to your device's public Downloads
-folder. It remains there until you delete it.
+When you tap **Save PNG** or **Save FIT**, the file is written to your device's
+public Downloads folder. It remains there until you delete it.
 
 ## Retention and deletion
 

@@ -23,7 +23,7 @@ import java.io.IOException
  * Besides the standard Flutter plumbing it exposes three tiny method channels:
  * one keeps the screen awake while a GPS recording is running, one requests the
  * Android 13+ notification permission for the foreground tracking notification,
- * and one saves exported PNGs in the public Downloads folder. The implementation
+ * and one saves exported files in the public Downloads folder. The implementation
  * lives in the host app so that TrainCenter does not need extra plugin
  * dependencies for these small features.
  */
@@ -35,7 +35,7 @@ class MainActivity : FlutterActivity() {
     /** Channel used to request the Android 13+ notification permission. */
     private val permissionChannel = "com.previx.traincenter/permissions"
 
-    /** Channel used to save exported PNGs in the public Downloads folder. */
+    /** Channel used to save exported files in the public Downloads folder. */
     private val downloadsChannel = "com.previx.traincenter/downloads"
 
     /** Channel used by the TrainerCraft bridge to find and open Minecraft. */
@@ -48,6 +48,7 @@ class MainActivity : FlutterActivity() {
     private var pendingDownloadResult: MethodChannel.Result? = null
     private var pendingDownloadBytes: ByteArray? = null
     private var pendingDownloadFileName: String? = null
+    private var pendingDownloadMimeType: String? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -76,7 +77,8 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, downloadsChannel)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
-                    "savePngToDownloads" -> savePngToDownloads(call, result)
+                    "savePngToDownloads" -> saveFileToDownloads(call, result)
+                    "saveFileToDownloads" -> saveFileToDownloads(call, result)
                     else -> result.notImplemented()
                 }
             }
@@ -154,17 +156,18 @@ class MainActivity : FlutterActivity() {
     }
 
     /**
-     * Saves a PNG in the public Downloads folder.
+     * Saves an exported file in the public Downloads folder.
      *
      * Android 10+ writes through MediaStore, so no storage permission is
      * needed. Android 9 and older first asks for `WRITE_EXTERNAL_STORAGE`;
      * the write is completed from [onRequestPermissionsResult].
      */
-    private fun savePngToDownloads(call: MethodCall, result: MethodChannel.Result) {
+    private fun saveFileToDownloads(call: MethodCall, result: MethodChannel.Result) {
         val bytes = call.argument<ByteArray>("bytes")
         val fileName = call.argument<String>("fileName")
+        val mimeType = call.argument<String>("mimeType") ?: "application/octet-stream"
         if (bytes == null || fileName.isNullOrBlank()) {
-            result.error("invalid_arguments", "Missing PNG bytes or file name.", null)
+            result.error("invalid_arguments", "Missing file bytes or file name.", null)
             return
         }
 
@@ -175,7 +178,7 @@ class MainActivity : FlutterActivity() {
             if (pendingDownloadResult != null) {
                 result.error(
                     "busy",
-                    "Another image is already waiting for storage permission.",
+                    "Another file is already waiting for storage permission.",
                     null,
                 )
                 return
@@ -183,6 +186,7 @@ class MainActivity : FlutterActivity() {
             pendingDownloadResult = result
             pendingDownloadBytes = bytes
             pendingDownloadFileName = fileName
+            pendingDownloadMimeType = mimeType
             requestPermissions(
                 arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
                 STORAGE_PERMISSION_REQUEST_CODE,
@@ -191,11 +195,11 @@ class MainActivity : FlutterActivity() {
         }
 
         try {
-            result.success(writePng(bytes, fileName))
+            result.success(writeFile(bytes, fileName, mimeType))
         } catch (error: Exception) {
             result.error(
                 "save_failed",
-                error.message ?: "Could not save the image.",
+                error.message ?: "Could not save the file.",
                 null,
             )
         }
@@ -223,51 +227,57 @@ class MainActivity : FlutterActivity() {
         val result = pendingDownloadResult ?: return
         val bytes = pendingDownloadBytes
         val fileName = pendingDownloadFileName
+        val mimeType = pendingDownloadMimeType ?: "application/octet-stream"
         pendingDownloadResult = null
         pendingDownloadBytes = null
         pendingDownloadFileName = null
+        pendingDownloadMimeType = null
 
         val granted = grantResults.isNotEmpty() &&
             grantResults[0] == PackageManager.PERMISSION_GRANTED
         if (!granted) {
             result.error(
                 "permission_denied",
-                "Allow storage access to save images in Downloads.",
+                "Allow storage access to save files in Downloads.",
                 null,
             )
             return
         }
         if (bytes == null || fileName.isNullOrBlank()) {
-            result.error("invalid_arguments", "The pending image data was lost.", null)
+            result.error("invalid_arguments", "The pending file data was lost.", null)
             return
         }
 
         try {
-            result.success(writePng(bytes, fileName))
+            result.success(writeFile(bytes, fileName, mimeType))
         } catch (error: Exception) {
             result.error(
                 "save_failed",
-                error.message ?: "Could not save the image.",
+                error.message ?: "Could not save the file.",
                 null,
             )
         }
     }
 
-    /** Writes the PNG using the storage API that matches the Android version. */
-    private fun writePng(bytes: ByteArray, fileName: String): String {
+    /** Writes the file using the storage API that matches the Android version. */
+    private fun writeFile(bytes: ByteArray, fileName: String, mimeType: String): String {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            writePngToMediaStore(bytes, fileName)
+            writeFileToMediaStore(bytes, fileName, mimeType)
         } else {
-            writePngToLegacyDownloads(bytes, fileName)
+            writeFileToLegacyDownloads(bytes, fileName, mimeType)
         }
     }
 
-    /** Android 10+: publishes the image through the Downloads collection. */
-    private fun writePngToMediaStore(bytes: ByteArray, fileName: String): String {
+    /** Android 10+: publishes the file through the Downloads collection. */
+    private fun writeFileToMediaStore(
+        bytes: ByteArray,
+        fileName: String,
+        mimeType: String,
+    ): String {
         val resolver = contentResolver
         val values = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-            put(MediaStore.Downloads.MIME_TYPE, "image/png")
+            put(MediaStore.Downloads.MIME_TYPE, mimeType)
             put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
             put(MediaStore.Downloads.IS_PENDING, 1)
         }
@@ -275,7 +285,7 @@ class MainActivity : FlutterActivity() {
             MediaStore.VOLUME_EXTERNAL_PRIMARY,
         )
         val uri = resolver.insert(collection, values)
-            ?: throw IOException("The Downloads collection rejected the image.")
+            ?: throw IOException("The Downloads collection rejected the file.")
 
         try {
             resolver.openOutputStream(uri)?.use { stream ->
@@ -307,7 +317,11 @@ class MainActivity : FlutterActivity() {
 
     /** Android 9 and older: writes directly to the public Downloads folder. */
     @Suppress("DEPRECATION")
-    private fun writePngToLegacyDownloads(bytes: ByteArray, fileName: String): String {
+    private fun writeFileToLegacyDownloads(
+        bytes: ByteArray,
+        fileName: String,
+        mimeType: String,
+    ): String {
         val downloads = Environment.getExternalStoragePublicDirectory(
             Environment.DIRECTORY_DOWNLOADS,
         )
@@ -320,7 +334,7 @@ class MainActivity : FlutterActivity() {
         MediaScannerConnection.scanFile(
             applicationContext,
             arrayOf(file.absolutePath),
-            arrayOf("image/png"),
+            arrayOf(mimeType),
             null,
         )
         return "Downloads/${file.name}"

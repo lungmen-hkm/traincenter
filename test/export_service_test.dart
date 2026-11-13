@@ -33,6 +33,30 @@ void main() {
     final arguments = received!.arguments as Map<Object?, Object?>;
     expect(arguments['bytes'], orderedEquals(bytes));
     expect(arguments['fileName'], matches(RegExp(r'^morning_ride_\d+\.png$')));
+    expect(arguments['mimeType'], 'image/png');
+  });
+
+  test('sends the FIT file to the generic Downloads saver', () async {
+    final bytes = Uint8List.fromList(<int>[0x0e, 0x10, 0x00, 0x00]);
+    MethodCall? received;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      received = call;
+      return 'Downloads/morning_ride_123.fit';
+    });
+
+    final service = ActivityExportService();
+    final location = await service.saveFitToDownloads(
+      bytes,
+      activityName: 'Morning Ride',
+    );
+
+    expect(location, 'Downloads/morning_ride_123.fit');
+    expect(received?.method, 'saveFileToDownloads');
+
+    final arguments = received!.arguments as Map<Object?, Object?>;
+    expect(arguments['bytes'], orderedEquals(bytes));
+    expect(arguments['fileName'], matches(RegExp(r'^morning_ride_\d+\.fit$')));
+    expect(arguments['mimeType'], ActivityExportService.fitMimeType);
   });
 
   test('rejects an empty location returned by the native layer', () async {

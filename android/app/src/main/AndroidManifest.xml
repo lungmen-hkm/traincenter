@@ -3,7 +3,8 @@
     <!--
         TrainCenter is privacy first. Location is the primary sensitive
         permission; legacy storage access is limited to Android 9 and older
-        and is requested only when the user saves a PNG to Downloads.
+        and is requested only when the user saves a PNG or FIT file to
+        Downloads.
     -->
     <!-- Precise location while the app is in use (recording a ride). -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>

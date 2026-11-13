@@ -68,7 +68,7 @@ lib/
     ├── activities/            # history + detail
     ├── gear/                  # equipment management
     ├── segments/              # segment list + editor
-    ├── export/                # transparent PNG card + share sheet
+    ├── export/                # transparent PNG card + FIT export + share
     ├── trainercraft/          # TrainerCraft bridge (BLE → local WebSocket)
     └── settings/              # preferences + privacy
 ```
@@ -160,7 +160,7 @@ recording can never be saved by an accidental tap.
   personal best** flags. Matching runs automatically after every saved
   activity.
 
-### 4.5 Activity detail & transparent PNG export
+### 4.5 Activity detail, PNG & FIT export
 * The detail screen shows distance, average speed, moving/elapsed time,
   elevation, max speed, pace, the route map and the matched segment efforts.
 * **Transparent PNG export** (`lib/features/export/`):
@@ -181,6 +181,19 @@ recording can never be saved by an accidental tap.
     older — so the file is visible in Files without root.
   * **Share** uses the native Android share sheet through `share_plus` and a
     timestamped private copy in `…/app_flutter/exports/`.
+* **FIT export** (`lib/core/services/fit_export_service.dart`):
+  * Encodes the activity with `fit_sdk` into a standard Garmin FIT activity
+    file containing the file id, timer start/stop events, one record per GPS
+    sample, a lap, the session summary and the activity summary.
+  * The FIT sport follows the activity's gear: a bicycle is encoded as
+    **cycling**, shoes as **running**, and an activity without gear as the
+    generic sport. GPS-less activities still export their summary.
+  * Records include the timestamp, position, altitude, speed and accumulated
+    route distance. Session/lap fields include elapsed and moving time,
+    distance, average/max speed and total ascent.
+  * **Save FIT** writes a timestamped `.fit` file to the public **Downloads**
+    folder through the same native channel as PNGs. **Share** uses the native
+    share sheet and a private sandbox copy.
 
 ### 4.6 Appearance, accessibility and orientation
 * Settings → Appearance offers **System / Light / Dark**; the choice is stored
@@ -230,6 +243,7 @@ the top app bar.
 | `geolocator` | GPS + Android foreground-service background tracking |
 | `flutter_map` + `latlong2` | Map surface, polylines, markers |
 | `widgets_to_image` | Transparent PNG rendering |
+| `fit_sdk` | Garmin FIT activity encoding |
 | `share_plus` + `cross_file` | Native share sheet |
 | `intl` | Locale-aware date/number formatting |
 | `uuid` | Stable identifiers |
@@ -321,7 +335,7 @@ flutter analyze
 flutter test
 ```
 
-The suite currently has **50 passing tests**:
+The suite currently has **56 passing tests**:
 
 * `test/widget_test.dart` — geo maths (haversine, segment projection,
   nearest-sample lookup) and the unit formatters.
@@ -332,14 +346,18 @@ The suite currently has **50 passing tests**:
   logic (match / no match / slower effort / faster effort).
 * `test/app_test.dart` — boots the **whole application** against a real
   SQLite database (`sqflite_common_ffi` in-memory FFI), checks navigation,
-  empty states, repositories, theme persistence, the export card, the
-  slide-to-confirm gesture and opening the TrainerCraft bridge from the app
-  bar. It also navigates the main screens and TrainerCraft at
+  empty states, repositories, theme persistence, the export card, the FIT
+  export flow, the slide-to-confirm gesture and opening the TrainerCraft bridge
+  from the app bar. It also navigates the main screens and TrainerCraft at
   **320 × 640 dp / 200 % text** to catch layout overflows.
 * `test/app_settings_test.dart` — theme and unit preference persistence.
 * `test/notification_permission_test.dart` — Android 13+ notification
   permission grant, denial and missing-channel fallbacks.
-* `test/export_service_test.dart` — Downloads save channel and failure mapping.
+* `test/export_service_test.dart` — Downloads save channel, PNG/FIT MIME types
+  and failure mapping.
+* `test/fit_export_service_test.dart` — FIT encoding and decoding: sport
+  selection from gear, file/session/lap/record fields, GPS-less summaries and
+  invalid optional record values.
 * `test/offline_tiles_test.dart` — bundled tile-pack detection.
 * `test/segments_test.dart` — grouped effort loading, PR promotion and segment
   repository behaviour.
@@ -363,7 +381,7 @@ Android 9) screen-off/Doze path remains tracked in `workplan.md`.
 * The app declares only the permissions it needs: location, foreground
   service, notifications, wake lock, optional internet access for map tiles,
   Bluetooth scan/connect for the TrainerCraft speed sensor and legacy storage
-  access for PNG exports on Android 9 and older.
+  access for PNG/FIT exports on Android 9 and older.
 * Android cloud backup is disabled.
 * Known limitation: the SQLite database is not encrypted at rest; see the
   [privacy policy](docs/privacy.md) for the threat model.

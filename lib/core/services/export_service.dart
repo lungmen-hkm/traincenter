@@ -14,25 +14,28 @@ class ExportResult {
   /// Creates an export result.
   const ExportResult({required this.file, required this.bytes});
 
-  /// The PNG file on disk.
+  /// The exported file on disk.
   final File file;
 
-  /// The raw PNG bytes.
+  /// The raw bytes written to [file].
   final Uint8List bytes;
 
   /// Size of the file in bytes.
   int get sizeInBytes => bytes.length;
 }
 
-/// Persists and shares the transparent PNG export of an activity.
+/// Persists and shares activity exports.
 ///
-/// The export never leaves the device unless the user explicitly triggers the
+/// The exports never leave the device unless the user explicitly triggers the
 /// system share sheet.
 class ActivityExportService {
   /// Creates the service.
   ActivityExportService();
 
-  /// Native channel that writes PNGs into the public Downloads folder.
+  /// MIME type used for Garmin FIT files.
+  static const String fitMimeType = 'application/vnd.garmin.fit';
+
+  /// Native channel that writes exports into the public Downloads folder.
   static const MethodChannel _downloadsChannel = MethodChannel(
     'com.previx.traincenter/downloads',
   );
@@ -45,17 +48,20 @@ class ActivityExportService {
   Future<ExportResult> savePng(
     Uint8List bytes, {
     required String activityName,
-  }) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final exportDirectory = Directory(p.join(directory.path, 'exports'));
-    if (!exportDirectory.existsSync()) {
-      await exportDirectory.create(recursive: true);
-    }
+  }) {
+    return _saveFile(bytes, activityName: activityName, extension: 'png');
+  }
 
-    final file = File(p.join(exportDirectory.path, _fileName(activityName)));
-    await file.writeAsBytes(bytes, flush: true);
-
-    return ExportResult(file: file, bytes: bytes);
+  /// Writes the FIT bytes to the application documents directory.
+  ///
+  /// This private copy is used for sharing. The user-facing "Save FIT" action
+  /// calls [saveFitToDownloads] instead, so the file is not hidden inside the
+  /// app sandbox.
+  Future<ExportResult> saveFit(
+    Uint8List bytes, {
+    required String activityName,
+  }) {
+    return _saveFile(bytes, activityName: activityName, extension: 'fit');
   }
 
   /// Saves the PNG into the device's public Downloads folder.
@@ -67,15 +73,31 @@ class ActivityExportService {
   Future<String> savePngToDownloads(
     Uint8List bytes, {
     required String activityName,
-  }) async {
-    final location = await _downloadsChannel.invokeMethod<String>(
-      'savePngToDownloads',
-      <String, Object?>{'fileName': _fileName(activityName), 'bytes': bytes},
+  }) {
+    return _saveToDownloads(
+      bytes,
+      activityName: activityName,
+      extension: 'png',
+      mimeType: 'image/png',
+      method: 'savePngToDownloads',
     );
-    if (location == null || location.isEmpty) {
-      throw StateError('The image could not be saved to Downloads.');
-    }
-    return location;
+  }
+
+  /// Saves the FIT file into the device's public Downloads folder.
+  ///
+  /// Returns the user-visible location, for example
+  /// `Downloads/morning_ride_1720000000000.fit`.
+  Future<String> saveFitToDownloads(
+    Uint8List bytes, {
+    required String activityName,
+  }) {
+    return _saveToDownloads(
+      bytes,
+      activityName: activityName,
+      extension: 'fit',
+      mimeType: fitMimeType,
+      method: 'saveFileToDownloads',
+    );
   }
 
   /// Opens the native share sheet for the given PNG [file].
@@ -83,9 +105,66 @@ class ActivityExportService {
   /// [origin] is the screen rectangle of the button that triggered the share.
   /// It is required by iPadOS to anchor the popover.
   Future<ShareResult> sharePng(File file, {String? text, Rect? origin}) {
+    return _shareFile(file, mimeType: 'image/png', text: text, origin: origin);
+  }
+
+  /// Opens the native share sheet for the given FIT [file].
+  Future<ShareResult> shareFit(File file, {String? text, Rect? origin}) {
+    return _shareFile(file, mimeType: fitMimeType, text: text, origin: origin);
+  }
+
+  /// Writes [bytes] to a timestamped file in the app sandbox.
+  Future<ExportResult> _saveFile(
+    Uint8List bytes, {
+    required String activityName,
+    required String extension,
+  }) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final exportDirectory = Directory(p.join(directory.path, 'exports'));
+    if (!exportDirectory.existsSync()) {
+      await exportDirectory.create(recursive: true);
+    }
+
+    final file = File(
+      p.join(exportDirectory.path, _fileName(activityName, extension)),
+    );
+    await file.writeAsBytes(bytes, flush: true);
+
+    return ExportResult(file: file, bytes: bytes);
+  }
+
+  /// Saves bytes into the device's public Downloads folder.
+  Future<String> _saveToDownloads(
+    Uint8List bytes, {
+    required String activityName,
+    required String extension,
+    required String mimeType,
+    required String method,
+  }) async {
+    final location = await _downloadsChannel.invokeMethod<String>(
+      method,
+      <String, Object?>{
+        'fileName': _fileName(activityName, extension),
+        'bytes': bytes,
+        'mimeType': mimeType,
+      },
+    );
+    if (location == null || location.isEmpty) {
+      throw StateError('The file could not be saved to Downloads.');
+    }
+    return location;
+  }
+
+  /// Opens the native share sheet for [file].
+  Future<ShareResult> _shareFile(
+    File file, {
+    required String mimeType,
+    String? text,
+    Rect? origin,
+  }) {
     return SharePlus.instance.share(
       ShareParams(
-        files: <XFile>[XFile(file.path, mimeType: 'image/png')],
+        files: <XFile>[XFile(file.path, mimeType: mimeType)],
         text: text,
         title: 'Share activity',
         subject: 'TrainCenter activity',
@@ -103,9 +182,9 @@ class ActivityExportService {
     return slug.isEmpty ? 'activity' : slug;
   }
 
-  /// Builds a collision-resistant, file-system safe PNG name.
-  String _fileName(String activityName) {
+  /// Builds a collision-resistant, file-system safe export name.
+  String _fileName(String activityName, String extension) {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    return '${_slug(activityName)}_$timestamp.png';
+    return '${_slug(activityName)}_$timestamp.$extension';
   }
 }

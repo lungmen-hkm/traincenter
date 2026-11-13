@@ -10,11 +10,14 @@ import '../../core/widgets/stat_tile.dart';
 import '../../core/widgets/stat_tile_grid.dart';
 import '../../core/widgets/train_center_map.dart';
 import '../../data/models/activity.dart';
+import '../../data/models/gear.dart';
 import '../../data/models/segment_effort.dart';
 import '../../data/models/track_point.dart';
 import '../../data/repositories/activity_repository.dart';
+import '../../data/repositories/gear_repository.dart';
 import '../../data/repositories/segment_repository.dart';
 import '../export/export_sheet.dart';
+import '../export/fit_export_sheet.dart';
 import '../settings/app_settings.dart';
 import 'activities_controller.dart';
 
@@ -34,6 +37,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   Activity? _activity;
   List<TrackPoint> _points = const <TrackPoint>[];
   List<SegmentEffort> _efforts = const <SegmentEffort>[];
+  GearType? _gearType;
   bool _loading = true;
 
   @override
@@ -42,13 +46,16 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     _load();
   }
 
-  /// Loads the activity, its GPS track and its segment efforts.
+  /// Loads the activity, its GPS track, its segment efforts and its gear.
   Future<void> _load() async {
     final activityRepository = context.read<ActivityRepository>();
     final segmentRepository = context.read<SegmentRepository>();
+    final gearRepository = context.read<GearRepository>();
 
     final activity = await activityRepository.findById(widget.activityId);
     final points = await activityRepository.trackPoints(widget.activityId);
+    final gearId = activity?.gearId;
+    final gear = gearId == null ? null : await gearRepository.findById(gearId);
 
     // Efforts are stored per segment, so they are gathered per segment below.
     final segments = await segmentRepository.listSegments();
@@ -61,6 +68,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     setState(() {
       _activity = activity;
       _points = points;
+      _gearType = gear?.type;
       _efforts = allEfforts
           .where((effort) => effort.activityId == widget.activityId)
           .toList(growable: false);
@@ -292,6 +300,26 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
           Text(
             'Creates a transparent PNG with the distance, the average speed, '
             'the moving time and the route geometry.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.tonalIcon(
+            onPressed: () => FitExportSheet.show(
+              context,
+              activity: activity,
+              points: _points,
+              gearType: _gearType,
+            ),
+            icon: const Icon(Icons.file_download_outlined),
+            label: const Text('Export FIT file'),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Creates a Garmin-compatible .fit file with your GPS track, '
+            'timestamps, distance, speed and elevation.',
             textAlign: TextAlign.center,
             style: theme.textTheme.bodySmall?.copyWith(
               color: colorScheme.onSurfaceVariant,
